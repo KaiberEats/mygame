@@ -1,5 +1,4 @@
 extends Control
-# aa
 signal card_dropped(from_index: int, to_index: int)
 
 @onready var rank_label: Label = $Panel/MarginContainer/VBoxContainer/RankLabel
