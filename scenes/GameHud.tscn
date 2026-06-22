@@ -1,0 +1,173 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/game_hud.gd" id="1_game_hud"]
+[ext_resource type="Script" path="res://scripts/item_slot.gd" id="2_item_slot"]
+[ext_resource type="Script" path="res://scripts/minimap.gd" id="3_minimap"]
+
+[node name="GameHud" type="CanvasLayer"]
+script = ExtResource("1_game_hud")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="DeckCountLabel" type="Label" parent="Root"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 24.0
+offset_top = 184.0
+offset_right = 220.0
+offset_bottom = 224.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 26
+text = "deck 53/53"
+
+[node name="Minimap" type="Control" parent="Root"]
+custom_minimum_size = Vector2(150, 150)
+layout_mode = 1
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 168.0
+offset_bottom = 168.0
+mouse_filter = 2
+script = ExtResource("3_minimap")
+
+[node name="HandContainer" type="HBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -656.0
+offset_top = 18.0
+offset_right = -24.0
+offset_bottom = 132.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="KillButton" type="Button" parent="Root"]
+disabled = true
+custom_minimum_size = Vector2(128, 58)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -156.0
+offset_top = -86.0
+offset_right = -28.0
+offset_bottom = -28.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 28
+text = "kill"
+
+[node name="ChangeButton" type="Button" parent="Root"]
+disabled = true
+custom_minimum_size = Vector2(152, 58)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -86.0
+offset_right = -168.0
+offset_bottom = -28.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 28
+text = "change"
+
+[node name="ItemSlot" type="Control" parent="Root"]
+custom_minimum_size = Vector2(92, 92)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -138.0
+offset_top = -194.0
+offset_right = -46.0
+offset_bottom = -102.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("2_item_slot")
+
+[node name="ViewedHandPanel" type="PanelContainer" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 0.5
+anchor_top = 0.0
+anchor_right = 0.5
+anchor_bottom = 0.0
+offset_left = -380.0
+offset_top = 142.0
+offset_right = 380.0
+offset_bottom = 284.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Content" type="HBoxContainer" parent="Root/ViewedHandPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ViewedName" type="Label" parent="Root/ViewedHandPanel/Content"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Computer"
+vertical_alignment = 1
+
+[node name="ViewedHand" type="HBoxContainer" parent="Root/ViewedHandPanel/Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="HandEditor" type="PanelContainer" parent="Root"]
+visible = false
+custom_minimum_size = Vector2(720, 170)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -85.0
+offset_right = 360.0
+offset_bottom = 85.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Content" type="VBoxContainer" parent="Root/HandEditor"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="InstructionLabel" type="Label" parent="Root/HandEditor/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 20
+text = "Drag cards to reorder"
+horizontal_alignment = 1
+
+[node name="EditorHandContainer" type="HBoxContainer" parent="Root/HandEditor/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1

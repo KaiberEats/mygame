@@ -1,0 +1,25 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/homing_missile.gd" id="1"]
+
+[sub_resource type="StandardMaterial3D" id="Material"]
+albedo_color = Color(0.01, 0.01, 0.01, 1)
+
+[sub_resource type="CylinderMesh" id="Mesh"]
+material = SubResource("Material")
+top_radius = 0.18
+bottom_radius = 0.18
+height = 0.9
+
+[sub_resource type="SphereShape3D" id="Shape"]
+radius = 0.3
+
+[node name="HomingMissile" type="CharacterBody3D"]
+script = ExtResource("1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+rotation_degrees = Vector3(90, 0, 0)
+mesh = SubResource("Mesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("Shape")

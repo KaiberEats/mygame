@@ -1,0 +1,151 @@
+[gd_scene load_steps=27 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="1_player"]
+[ext_resource type="PackedScene" path="res://scenes/PauseMenu.tscn" id="2_pause_menu"]
+[ext_resource type="Script" path="res://scripts/waiting_room.gd" id="3_main"]
+[ext_resource type="PackedScene" path="res://scenes/Deck.tscn" id="4_deck"]
+[ext_resource type="PackedScene" path="res://scenes/GameHud.tscn" id="5_game_hud"]
+[ext_resource type="PackedScene" path="res://scenes/Computer.tscn" id="6_computer"]
+[ext_resource type="PackedScene" path="res://scenes/Settings.tscn" id="7_settings"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_brown"]
+albedo_color = Color(0.45, 0.24, 0.08, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall_red"]
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall_blue"]
+albedo_color = Color(0, 0.18, 1, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall_green"]
+albedo_color = Color(0, 0.75, 0.2, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall_yellow"]
+albedo_color = Color(1, 0.9, 0, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ceiling_black"]
+albedo_color = Color(0, 0, 0, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(40, 0.5, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(40, 0.5, 40)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall_ns"]
+size = Vector3(40, 6, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall_ns"]
+size = Vector3(40, 6, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall_ew"]
+size = Vector3(0.5, 6, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wall_ew"]
+size = Vector3(0.5, 6, 40)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ceiling"]
+size = Vector3(40, 0.5, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ceiling"]
+size = Vector3(40, 0.5, 40)
+
+[sub_resource type="Environment" id="Environment_world"]
+background_mode = 1
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 0.8
+
+[node name="Main" type="Node3D"]
+script = ExtResource("3_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_world")
+
+[node name="SunLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 8, 0)
+light_energy = 1.2
+
+[node name="Room" type="Node3D" parent="."]
+
+[node name="Floor" type="StaticBody3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Room/Floor"]
+mesh = SubResource("BoxMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor_brown")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Room/Floor"]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="NorthWall" type="StaticBody3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -20)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Room/NorthWall"]
+mesh = SubResource("BoxMesh_wall_ns")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall_red")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Room/NorthWall"]
+shape = SubResource("BoxShape3D_wall_ns")
+
+[node name="SouthWall" type="StaticBody3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 20)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Room/SouthWall"]
+mesh = SubResource("BoxMesh_wall_ns")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall_blue")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Room/SouthWall"]
+shape = SubResource("BoxShape3D_wall_ns")
+
+[node name="EastWall" type="StaticBody3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 3, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Room/EastWall"]
+mesh = SubResource("BoxMesh_wall_ew")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall_green")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Room/EastWall"]
+shape = SubResource("BoxShape3D_wall_ew")
+
+[node name="WestWall" type="StaticBody3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 3, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Room/WestWall"]
+mesh = SubResource("BoxMesh_wall_ew")
+surface_material_override/0 = SubResource("StandardMaterial3D_wall_yellow")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Room/WestWall"]
+shape = SubResource("BoxShape3D_wall_ew")
+
+[node name="Ceiling" type="StaticBody3D" parent="Room"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.25, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Room/Ceiling"]
+mesh = SubResource("BoxMesh_ceiling")
+surface_material_override/0 = SubResource("StandardMaterial3D_ceiling_black")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Room/Ceiling"]
+shape = SubResource("BoxShape3D_ceiling")
+
+[node name="Player" parent="." instance=ExtResource("1_player")]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -8, 0, -8)
+
+[node name="Computer1" parent="." instance=ExtResource("6_computer")]
+transform = Transform3D(-0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, -0.707107, 8, 0, -8)
+
+[node name="Computer2" parent="." instance=ExtResource("6_computer")]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 8, 0, 8)
+
+[node name="Computer3" parent="." instance=ExtResource("6_computer")]
+transform = Transform3D(-0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, -0.707107, -8, 0, 8)
+
+[node name="Deck" parent="." instance=ExtResource("4_deck")]
+
+[node name="GameHud" parent="." instance=ExtResource("5_game_hud")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("2_pause_menu")]
+visible = false
+
+[node name="Settings" parent="." instance=ExtResource("7_settings")]
+visible = false

@@ -1,0 +1,77 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="1_player"]
+[ext_resource type="PackedScene" path="res://scenes/PauseMenu.tscn" id="2_pause"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="3_main"]
+[ext_resource type="PackedScene" path="res://scenes/Deck.tscn" id="4_deck"]
+[ext_resource type="Script" path="res://scripts/player.gd" id="4_jehmk"]
+[ext_resource type="PackedScene" path="res://scenes/GameHud.tscn" id="5_hud"]
+[ext_resource type="PackedScene" path="res://scenes/Computer.tscn" id="6_computer"]
+[ext_resource type="Script" path="res://scripts/computer.gd" id="6_slek2"]
+[ext_resource type="PackedScene" path="res://scenes/Settings.tscn" id="7_settings"]
+[ext_resource type="Script" path="res://scripts/deck.gd" id="8_8wpeq"]
+[ext_resource type="Script" path="res://scripts/mansion_builder.gd" id="8_mansion"]
+[ext_resource type="Script" path="res://scripts/game_hud.gd" id="10_q627l"]
+[ext_resource type="Script" path="res://scripts/pause_menu.gd" id="12_xhc76"]
+[ext_resource type="Script" path="res://scripts/settings.gd" id="14_76mrf"]
+
+[sub_resource type="Environment" id="Environment_mansion"]
+background_mode = 1
+background_color = Color(0.025, 0.018, 0.014, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.72, 0.58, 0.42, 1)
+ambient_light_energy = 0.72
+
+[node name="Mansion" type="Node3D" unique_id=449565224]
+script = ExtResource("3_main")
+minimap_world_half_extent = 45.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2041241157]
+environment = SubResource("Environment_mansion")
+
+[node name="MoonLight" type="DirectionalLight3D" parent="." unique_id=272938574]
+transform = Transform3D(0.90630776, 0.34618863, -0.24240388, 0, 0.57357645, 0.81915206, 0.42261827, -0.74240386, 0.5198368, 0, 0, 0)
+light_color = Color(0.78, 0.7, 0.58, 1)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="Room" type="Node3D" parent="." unique_id=750527210]
+script = ExtResource("8_mansion")
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=1746208512 instance=ExtResource("1_player")]
+transform = Transform3D(0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, 0.70710677, -34, 0, 17)
+script = ExtResource("4_jehmk")
+
+[node name="Computer1" type="CharacterBody3D" parent="." unique_id=993545628 instance=ExtResource("6_computer")]
+transform = Transform3D(0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, 0.70710677, 34, 0, 17)
+script = ExtResource("6_slek2")
+
+[node name="Computer2" type="CharacterBody3D" parent="." unique_id=1963558756 instance=ExtResource("6_computer")]
+transform = Transform3D(-0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, -0.70710677, 34, 0, -17)
+script = ExtResource("6_slek2")
+
+[node name="Computer3" type="CharacterBody3D" parent="." unique_id=1233926785 instance=ExtResource("6_computer")]
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, -34, 0, -17)
+script = ExtResource("6_slek2")
+
+[node name="Deck" type="Node" parent="." unique_id=2146859394 instance=ExtResource("4_deck")]
+script = ExtResource("8_8wpeq")
+
+[node name="GameHud" type="CanvasLayer" parent="." unique_id=552380267 instance=ExtResource("5_hud")]
+script = ExtResource("10_q627l")
+
+[node name="PauseMenu" type="CanvasLayer" parent="." unique_id=1660355824 instance=ExtResource("2_pause")]
+process_mode = 3
+visible = false
+script = ExtResource("12_xhc76")
+
+[node name="Settings" type="Control" parent="." unique_id=490687214 instance=ExtResource("7_settings")]
+process_mode = 3
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("14_76mrf")

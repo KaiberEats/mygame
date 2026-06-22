@@ -1,0 +1,79 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/lobby.gd" id="1_lobby"]
+
+[node name="Lobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lobby")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.055, 0.035, 0.025, 1)
+
+[node name="Header" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 54.0
+offset_bottom = 126.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.91, 0.78, 0.48, 1)
+theme_override_font_sizes/font_size = 52
+text = "MAP SELECT"
+horizontal_alignment = 1
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 2
+theme_override_constants/separation = 22
+alignment = 1
+
+[node name="Description" type="Label" parent="Center/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.84, 0.74, 1)
+theme_override_font_sizes/font_size = 22
+text = "Choose a battlefield"
+horizontal_alignment = 1
+
+[node name="ClassicButton" type="Button" parent="Center/VBox"]
+custom_minimum_size = Vector2(520, 76)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Classic Room  -  40 x 40"
+
+[node name="MansionButton" type="Button" parent="Center/VBox"]
+custom_minimum_size = Vector2(520, 92)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Grand Mansion  -  90 x 90"
+
+[node name="MansionInfo" type="Label" parent="Center/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.64, 0.5, 1)
+theme_override_font_sizes/font_size = 17
+text = "Central hall, corridors, guest rooms and dining hall"
+horizontal_alignment = 1
+
+[node name="BackButton" type="Button" parent="Center/VBox"]
+custom_minimum_size = Vector2(520, 58)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Back to Title"
