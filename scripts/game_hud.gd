@@ -1,10 +1,11 @@
-﻿extends CanvasLayer
+extends CanvasLayer
 
 signal hand_reordered(cards: Array[Dictionary])
 signal debug_return_requested
 
 const CARD_VIEW_SCENE := preload("res://scenes/CardView.tscn")
 const ITEM_SLOT_SCRIPT := preload("res://scripts/item_slot.gd")
+const EDGE_STATUS_EFFECT_SCRIPT := preload("res://scripts/edge_status_effect.gd")
 
 @onready var deck_count_label: Label = $Root/DeckCountLabel
 @onready var hand_container: HBoxContainer = $Root/HandContainer
@@ -41,9 +42,21 @@ var _ability_cooldown_panel: PanelContainer
 var _ability_cooldown_bar: ProgressBar
 var _exposure_panel: PanelContainer
 var _exposure_list: VBoxContainer
+var _edge_status_effect: Control
+var _crosshair: Control
+var _hud_scale := 1.0
+var _last_hand: Array[Dictionary] = []
+var _last_viewed_cards: Array[Dictionary] = []
+var _last_viewed_name := ""
 
 
 func _ready() -> void:
+	_edge_status_effect = Control.new()
+	_edge_status_effect.name = "EdgeStatusEffect"
+	_edge_status_effect.set_script(EDGE_STATUS_EFFECT_SCRIPT)
+	$Root.add_child(_edge_status_effect)
+	$Root.move_child(_edge_status_effect, 0)
+
 	_build_crosshair()
 
 	_time_label = Label.new()
@@ -70,6 +83,7 @@ func _ready() -> void:
 	$Root.add_child(_end_label)
 
 	_exchange_panel = PanelContainer.new()
+	_exchange_panel.name = "ExchangePanel"
 	_exchange_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_exchange_panel.position = Vector2(-240, 80)
 	_exchange_panel.size = Vector2(480, 100)
@@ -99,6 +113,7 @@ func _ready() -> void:
 	$Root.add_child(_kill_cooldown_clock)
 
 	_notification_label = Label.new()
+	_notification_label.name = "NotificationLabel"
 	_notification_label.set_anchors_preset(Control.PRESET_CENTER)
 	_notification_label.position = Vector2(-400, -90)
 	_notification_label.size = Vector2(800, 180)
@@ -112,6 +127,7 @@ func _ready() -> void:
 	$Root.add_child(_notification_label)
 
 	_stun_panel = PanelContainer.new()
+	_stun_panel.name = "StunPanel"
 	_stun_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_stun_panel.position = Vector2(-240, 80)
 	_stun_panel.size = Vector2(480, 100)
@@ -131,6 +147,7 @@ func _ready() -> void:
 	$Root.add_child(_stun_panel)
 
 	_change_preview_layer = Control.new()
+	_change_preview_layer.name = "ChangePreviewLayer"
 	_change_preview_layer.set_anchors_preset(Control.PRESET_CENTER)
 	_change_preview_layer.position = Vector2(-150, -90)
 	_change_preview_layer.size = Vector2(300, 180)
@@ -185,11 +202,15 @@ func _ready() -> void:
 	_exposure_panel.hide()
 	$Root.add_child(_exposure_panel)
 	GameConfig.language_changed.connect(_update_language)
+	GameConfig.ui_scale_changed.connect(_apply_responsive_layout)
+	get_viewport().size_changed.connect(_apply_responsive_layout)
 	_update_language()
+	_apply_responsive_layout()
 
 
 func _build_crosshair() -> void:
 	var crosshair := Control.new()
+	_crosshair = crosshair
 	crosshair.name = "Crosshair"
 	crosshair.set_anchors_preset(Control.PRESET_CENTER)
 	crosshair.position = Vector2(-12, -12)
@@ -210,6 +231,141 @@ func _build_crosshair() -> void:
 	vertical.color = Color.WHITE
 	vertical.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	crosshair.add_child(vertical)
+
+
+func _set_control_rect(control: Control, top_left: Vector2, rect_size: Vector2) -> void:
+	control.offset_left = top_left.x
+	control.offset_top = top_left.y
+	control.offset_right = top_left.x + rect_size.x
+	control.offset_bottom = top_left.y + rect_size.y
+
+
+func _apply_responsive_layout() -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	_edge_status_effect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_edge_status_effect.offset_left = 0.0
+	_edge_status_effect.offset_top = 0.0
+	_edge_status_effect.offset_right = 0.0
+	_edge_status_effect.offset_bottom = 0.0
+	var viewport_scale := clampf(viewport_size.y / 720.0, 0.7, 2.2)
+	var user_scale := lerpf(0.65, 1.35, float(GameConfig.ui_size_percent) / 100.0)
+	_hud_scale = viewport_scale * user_scale
+	var margin := roundf(24.0 * _hud_scale)
+	var small_gap := roundf(8.0 * _hud_scale)
+
+	var minimap_size := clampf(150.0 * _hud_scale, 96.0, minf(viewport_size.x, viewport_size.y) * 0.28)
+	_set_control_rect(minimap, Vector2(margin, margin), Vector2.ONE * minimap_size)
+	minimap.custom_minimum_size = minimap.size
+
+	_set_control_rect(
+		deck_count_label,
+		Vector2(margin, margin + minimap_size + 12.0 * _hud_scale),
+		Vector2(240.0 * _hud_scale, 40.0 * _hud_scale)
+	)
+	deck_count_label.add_theme_font_size_override("font_size", roundi(26.0 * _hud_scale))
+
+	var card_size := Vector2(72.0, 104.0) * _hud_scale
+	var hand_width := minf(card_size.x * 8.0 + small_gap * 7.0, viewport_size.x * 0.58)
+	hand_container.offset_left = -margin - hand_width
+	hand_container.offset_top = margin
+	hand_container.offset_right = -margin
+	hand_container.offset_bottom = margin + card_size.y + 10.0 * _hud_scale
+	hand_container.add_theme_constant_override("separation", roundi(small_gap))
+
+	_ability_cooldown_panel.offset_left = hand_container.offset_left
+	_ability_cooldown_panel.offset_top = hand_container.offset_bottom + 6.0 * _hud_scale
+	_ability_cooldown_panel.offset_right = hand_container.offset_right
+	_ability_cooldown_panel.offset_bottom = _ability_cooldown_panel.offset_top + 26.0 * _hud_scale
+
+	var button_size := Vector2(140.0, 58.0) * _hud_scale
+	kill_button.offset_left = -margin - button_size.x
+	kill_button.offset_top = -margin - button_size.y
+	kill_button.offset_right = -margin
+	kill_button.offset_bottom = -margin
+	kill_button.add_theme_font_size_override("font_size", roundi(28.0 * _hud_scale))
+
+	var change_size := Vector2(158.0, 58.0) * _hud_scale
+	change_button.offset_left = kill_button.offset_left - 12.0 * _hud_scale - change_size.x
+	change_button.offset_top = kill_button.offset_top
+	change_button.offset_right = kill_button.offset_left - 12.0 * _hud_scale
+	change_button.offset_bottom = kill_button.offset_bottom
+	change_button.add_theme_font_size_override("font_size", roundi(28.0 * _hud_scale))
+
+	var item_size := Vector2.ONE * (92.0 * _hud_scale)
+	item_slot.offset_left = -margin - item_size.x
+	item_slot.offset_top = kill_button.offset_top - 16.0 * _hud_scale - item_size.y
+	item_slot.offset_right = -margin
+	item_slot.offset_bottom = kill_button.offset_top - 16.0 * _hud_scale
+
+	_kill_cooldown_clock.offset_left = item_slot.offset_left - 116.0 * _hud_scale
+	_kill_cooldown_clock.offset_top = item_slot.offset_top + 10.0 * _hud_scale
+	_kill_cooldown_clock.offset_right = _kill_cooldown_clock.offset_left + 104.0 * _hud_scale
+	_kill_cooldown_clock.offset_bottom = _kill_cooldown_clock.offset_top + 72.0 * _hud_scale
+
+	_set_control_rect(_time_label, Vector2(margin, -70.0 * _hud_scale), Vector2(220.0, 50.0) * _hud_scale)
+	_time_label.add_theme_font_size_override("font_size", roundi(32.0 * _hud_scale))
+
+	_set_control_rect(
+		_debug_return_button,
+		Vector2(margin, -132.0 * _hud_scale),
+		Vector2(230.0, 48.0) * _hud_scale
+	)
+	_debug_return_button.add_theme_font_size_override("font_size", roundi(18.0 * _hud_scale))
+
+	_set_control_rect(
+		_exposure_panel,
+		Vector2(margin, margin + minimap_size + 72.0 * _hud_scale),
+		Vector2(280.0, 92.0) * _hud_scale
+	)
+
+	var panel_size := Vector2(480.0, 100.0) * _hud_scale
+	for panel in [_exchange_panel, _stun_panel]:
+		_set_control_rect(panel, Vector2(-panel_size.x * 0.5, 80.0 * _hud_scale), panel_size)
+	_exchange_label.add_theme_font_size_override("font_size", roundi(28.0 * _hud_scale))
+	_exchange_bar.custom_minimum_size = Vector2(440.0, 30.0) * _hud_scale
+	_stun_label.add_theme_font_size_override("font_size", roundi(28.0 * _hud_scale))
+	_stun_bar.custom_minimum_size = Vector2(440.0, 30.0) * _hud_scale
+
+	_set_control_rect(
+		_notification_label,
+		Vector2(-400.0, -90.0) * _hud_scale,
+		Vector2(800.0, 180.0) * _hud_scale
+	)
+	_notification_label.add_theme_font_size_override("font_size", roundi(54.0 * _hud_scale))
+	_set_control_rect(
+		_end_label,
+		Vector2(-300.0, -70.0) * _hud_scale,
+		Vector2(600.0, 140.0) * _hud_scale
+	)
+	_end_label.add_theme_font_size_override("font_size", roundi(72.0 * _hud_scale))
+
+	_set_control_rect(
+		_change_preview_layer,
+		Vector2(-150.0, -90.0) * _hud_scale,
+		Vector2(300.0, 180.0) * _hud_scale
+	)
+
+	viewed_panel.offset_left = -380.0 * _hud_scale
+	viewed_panel.offset_top = 142.0 * _hud_scale
+	viewed_panel.offset_right = 380.0 * _hud_scale
+	viewed_panel.offset_bottom = 284.0 * _hud_scale
+
+	if _crosshair != null:
+		_set_control_rect(_crosshair, Vector2(-12.0, -12.0) * _hud_scale, Vector2(24.0, 24.0) * _hud_scale)
+		var horizontal := _crosshair.get_child(0) as Control
+		var vertical := _crosshair.get_child(1) as Control
+		_set_control_rect(horizontal, Vector2(2.0, 11.0) * _hud_scale, Vector2(20.0, 2.0) * _hud_scale)
+		_set_control_rect(vertical, Vector2(11.0, 2.0) * _hud_scale, Vector2(2.0, 20.0) * _hud_scale)
+
+	if not _last_hand.is_empty():
+		_render_cards(hand_container, _last_hand, false)
+	if hand_editor.visible:
+		_render_cards(editor_hand_container, _editor_cards, true)
+	if viewed_panel.visible and not _last_viewed_name.is_empty():
+		_viewed_hand_signature = ""
+		set_viewed_hand(_last_viewed_name, _last_viewed_cards)
 
 
 func _process(delta: float) -> void:
@@ -293,6 +449,10 @@ func set_exposure_status(is_location_revealed: bool, is_hand_viewed: bool) -> vo
 	_exposure_panel.visible = is_location_revealed or is_hand_viewed
 
 
+func set_edge_status_effects(has_joker: bool, is_invincible: bool, has_barrier: bool) -> void:
+	_edge_status_effect.call("set_statuses", has_joker, is_invincible, has_barrier)
+
+
 func show_notification(message: String, duration: float = 3.0) -> void:
 	_notification_label.text = message
 	_notification_label.show()
@@ -309,6 +469,7 @@ func set_stun_status(time_left: float, duration: float) -> void:
 
 
 func set_hand(cards: Array[Dictionary]) -> void:
+	_last_hand = cards.duplicate()
 	_render_cards(hand_container, cards, false)
 	if hand_editor.visible:
 		_editor_cards = cards.duplicate()
@@ -352,6 +513,8 @@ func set_minimap_world_half_extent(world_half_extent: float) -> void:
 
 
 func set_viewed_hand(participant_name: String, cards: Array[Dictionary]) -> void:
+	_last_viewed_name = participant_name
+	_last_viewed_cards = cards.duplicate()
 	viewed_panel.visible = not participant_name.is_empty()
 	if participant_name.is_empty():
 		_viewed_hand_signature = ""
@@ -394,6 +557,7 @@ func _render_cards(container: HBoxContainer, cards: Array[Dictionary], is_dragga
 		container.add_child(card_view)
 		if container == viewed_hand:
 			card_view.set_compact(true)
+		card_view.set_ui_scale(_hud_scale)
 		card_view.set_card(cards[index])
 		card_view.set_drag_index(index if is_draggable else -1)
 		if is_draggable:
@@ -415,4 +579,3 @@ func _on_card_dropped(from_index: int, to_index: int) -> void:
 	_render_cards(editor_hand_container, _editor_cards, true)
 	_render_cards(hand_container, _editor_cards, false)
 	hand_reordered.emit(_editor_cards.duplicate())
-

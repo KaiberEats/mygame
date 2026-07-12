@@ -41,10 +41,14 @@ var _language_option: OptionButton
 var _name_edit: LineEdit
 var _color_row: HBoxContainer
 var _color_option: OptionButton
+var _ui_size_row: HBoxContainer
+var _ui_size_slider: HSlider
+var _ui_size_value: Label
 var _save_button: Button
 var _pending_language := ""
 var _pending_player_name := ""
 var _pending_player_color_name := ""
+var _pending_ui_size_percent := 50
 
 
 func _ready() -> void:
@@ -57,12 +61,14 @@ func _ready() -> void:
 	_pending_language = GameConfig.language
 	_pending_player_name = GameConfig.player_name
 	_pending_player_color_name = GameConfig.player_color_name
+	_pending_ui_size_percent = GameConfig.ui_size_percent
 	_capture_pending_bindings()
 	_update_screen_label()
 	_build_page_tabs()
 	_build_language_row()
 	_build_name_row()
 	_build_color_row()
+	_build_ui_size_row()
 	_build_controls_page()
 	_build_save_button()
 	left_button.pressed.connect(_change_screen_option.bind(-1))
@@ -178,6 +184,37 @@ func _build_color_row() -> void:
 	content.move_child(row, 4)
 
 
+func _build_ui_size_row() -> void:
+	var row := HBoxContainer.new()
+	row.name = "UiSizeRow"
+	_ui_size_row = row
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var label := Label.new()
+	label.name = "UiSizeLabel"
+	label.custom_minimum_size = Vector2(220, 48)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(label)
+	_ui_size_slider = HSlider.new()
+	_ui_size_slider.min_value = 0.0
+	_ui_size_slider.max_value = 100.0
+	_ui_size_slider.step = 1.0
+	_ui_size_slider.value = _pending_ui_size_percent
+	_ui_size_slider.custom_minimum_size = Vector2(210, 48)
+	_ui_size_slider.value_changed.connect(func(value: float) -> void:
+		_pending_ui_size_percent = roundi(value)
+		_update_ui_size_value()
+	)
+	row.add_child(_ui_size_slider)
+	_ui_size_value = Label.new()
+	_ui_size_value.custom_minimum_size = Vector2(70, 48)
+	_ui_size_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_ui_size_value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(_ui_size_value)
+	content.add_child(row)
+	content.move_child(row, 5)
+	_update_ui_size_value()
+
+
 func _build_controls_page() -> void:
 	_controls_scroll = ScrollContainer.new()
 	_controls_scroll.custom_minimum_size = Vector2(640, 350)
@@ -216,6 +253,7 @@ func _show_display_page() -> void:
 	_language_row.show()
 	content.get_node("NameRow").show()
 	_color_row.show()
+	_ui_size_row.show()
 	screen_row.show()
 	_controls_scroll.hide()
 	_display_button.disabled = true
@@ -226,6 +264,7 @@ func _show_controls_page() -> void:
 	_language_row.hide()
 	content.get_node("NameRow").hide()
 	_color_row.hide()
+	_ui_size_row.hide()
 	screen_row.hide()
 	_controls_scroll.show()
 	_display_button.disabled = false
@@ -265,6 +304,7 @@ func _update_language() -> void:
 	content.get_node("LanguageRow/LanguageLabel").text = GameConfig.text("language")
 	content.get_node("NameRow/NameLabel").text = GameConfig.text("player_name")
 	content.get_node("ColorRow/ColorLabel").text = GameConfig.text("character_color")
+	content.get_node("UiSizeRow/UiSizeLabel").text = GameConfig.text("ui_size")
 	for index in _color_option.item_count:
 		var color_name := String(_color_option.get_item_metadata(index))
 		_color_option.set_item_text(index, GameConfig.color_label(color_name))
@@ -318,6 +358,11 @@ func _update_screen_label() -> void:
 	screen_value.text = SCREEN_OPTIONS[_screen_index]
 
 
+func _update_ui_size_value() -> void:
+	if _ui_size_value != null:
+		_ui_size_value.text = "%d%%" % _pending_ui_size_percent
+
+
 func _on_back_pressed() -> void:
 	_waiting_action = ""
 	_screen_index = _saved_screen_index
@@ -334,6 +379,7 @@ func _save_changes() -> void:
 	_waiting_action = ""
 	GameConfig.player_name = _pending_player_name
 	GameConfig.player_color_name = _pending_player_color_name
+	GameConfig.set_ui_size_percent(_pending_ui_size_percent)
 	for action in REBINDABLE_ACTIONS:
 		InputMap.action_erase_events(action)
 		for event in _pending_bindings.get(action, []):

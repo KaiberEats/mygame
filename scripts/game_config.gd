@@ -1,6 +1,7 @@
 extends Node
 
 signal language_changed
+signal ui_scale_changed
 
 const TIME_OPTIONS: Array[int] = [5, 10, 15, 20, 25, 30]
 const PLAYER_COLOR_OPTIONS := ["black", "red", "blue", "green", "purple", "pink", "cyan"]
@@ -13,6 +14,7 @@ var language := "en"
 var player_name := "Player"
 var player_color_name := "black"
 var tutorial_return_scene := "res://scenes/Title.tscn"
+var ui_size_percent := 50
 
 
 func _ready() -> void:
@@ -29,7 +31,7 @@ var _translations := {
 		"key_controls": "キー操作", "language": "言語", "back": "戻る",
 		"save_changes": "変更を保存",
 		"screen": "スクリーン設定", "press_key": "キーを押してください...", "unbound": "未設定",
-		"player_name": "プレイヤー名", "character_color": "キャラクターカラー",
+		"player_name": "プレイヤー名", "character_color": "キャラクターカラー", "ui_size": "UIサイズ",
 		"color_black": "黒", "color_red": "赤", "color_blue": "青", "color_green": "緑", "color_purple": "紫", "color_pink": "ピンク", "color_cyan": "水色",
 		"select_mode": "モード選択", "single_play": "シングルプレイ", "port": "ポート ", "host_server": "ホスト作成",
 		"server_ip": "サーバーIPアドレス", "join_server": "サーバー参加", "quit_game": "ゲーム終了",
@@ -53,7 +55,7 @@ var _translations := {
 		"key_controls": "Key Controls", "language": "Language", "back": "Back",
 		"save_changes": "Save Changes",
 		"screen": "Screen", "press_key": "Press a key...", "unbound": "Unbound",
-		"player_name": "Player Name", "character_color": "Character Color",
+		"player_name": "Player Name", "character_color": "Character Color", "ui_size": "UI Size",
 		"color_black": "Black", "color_red": "Red", "color_blue": "Blue", "color_green": "Green", "color_purple": "Purple", "color_pink": "Pink", "color_cyan": "Light Blue",
 		"select_mode": "Select Mode", "single_play": "Single Play", "port": "Port ", "host_server": "Host Server",
 		"server_ip": "Server IP address", "join_server": "Join Server", "quit_game": "Quit Game",
@@ -81,6 +83,11 @@ func text(key: String) -> String:
 func set_language(value: String) -> void:
 	language = value
 	language_changed.emit()
+
+
+func set_ui_size_percent(value: int) -> void:
+	ui_size_percent = clampi(value, 0, 100)
+	ui_scale_changed.emit()
 
 
 func player_color() -> Color:

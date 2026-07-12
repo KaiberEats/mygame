@@ -114,6 +114,7 @@ func _process(delta: float) -> void:
 	game_hud.set_stun_status(player.get_stun_time_left(), STUN_SECONDS)
 	_update_player_information_hud()
 	_update_player_exposure_hud()
+	_update_player_edge_status_effects()
 	_player_kill_target = _find_kill_target(player)
 	_player_change_target = _find_change_target(player)
 	_player_exchange_target = _find_aimed_exchange_station()
@@ -916,6 +917,15 @@ func _update_player_exposure_hud() -> void:
 	game_hud.set_exposure_status(_is_location_revealed(player), _is_hand_being_viewed(player))
 
 
+func _update_player_edge_status_effects() -> void:
+	var effects: Dictionary = _effects.get(player, {})
+	game_hud.set_edge_status_effects(
+		player.has_joker(),
+		float(effects.get("invincible_until", 0.0)) > _now(),
+		int(effects.get("barrier_charges", 0)) > 0
+	)
+
+
 func _is_location_revealed(target: Node3D) -> bool:
 	for reveal_data in _map_reveals.values():
 		var positions: Dictionary = reveal_data.get("positions", {})
@@ -1207,16 +1217,13 @@ func _set_station_cards(station: StaticBody3D, cards: Array) -> void:
 			if has_card:
 				var material := mesh.material_override as StandardMaterial3D
 				if material != null:
-					var card_color: Color = typed_cards[card_index].get("color", Color.WHITE)
-					material.albedo_color = Color(0.08, 0.08, 0.09).lerp(card_color, 0.25)
-					material.emission = card_color * 0.25
+					material.albedo_color = Color(0.04, 0.04, 0.05)
+					material.emission = Color(0.28, 0.18, 0.04)
 		if label != null:
 			label.visible = has_card
 			if has_card:
-				var card: Dictionary = typed_cards[card_index]
-				label.text = "%s%s" % [card.get("label", "?"), card.get("mark", "?")]
-				var card_color: Color = card.get("color", Color.WHITE)
-				label.modulate = Color.WHITE if card_color.get_luminance() < 0.35 else card_color
+				label.text = "?"
+				label.modulate = Color.WHITE
 
 
 func _find_aimed_exchange_station() -> StaticBody3D:

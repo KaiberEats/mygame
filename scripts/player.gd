@@ -25,6 +25,7 @@ var display_name := "Player"
 var _body_material: StandardMaterial3D
 var _input_enabled := true
 var _barrier_effect: MeshInstance3D
+var _barrier_active := false
 
 
 func _ready() -> void:
@@ -168,7 +169,8 @@ func set_input_enabled(is_enabled: bool) -> void:
 func set_barrier_active(is_active: bool) -> void:
 	if _barrier_effect == null:
 		_create_barrier_effect()
-	_barrier_effect.visible = is_active
+	_barrier_active = is_active
+	_update_barrier_visibility()
 
 
 func get_view_origin() -> Vector3:
@@ -187,12 +189,14 @@ func ensure_local_camera() -> void:
 	if not is_multiplayer_authority():
 		camera.current = false
 		third_person_camera.current = false
+		_update_barrier_visibility()
 		return
 
 	if is_stunned():
 		third_person_camera.make_current()
 	else:
 		camera.make_current()
+	_update_barrier_visibility()
 
 
 func _get_gravity() -> float:
@@ -282,6 +286,13 @@ func _create_barrier_effect() -> void:
 	_barrier_effect.material_override = material
 	_barrier_effect.visible = false
 	add_child(_barrier_effect)
+
+
+func _update_barrier_visibility() -> void:
+	if _barrier_effect == null:
+		return
+	var is_local_first_person := is_multiplayer_authority() and camera.current
+	_barrier_effect.visible = _barrier_active and not is_local_first_person
 
 
 @rpc("authority", "call_remote", "unreliable")

@@ -31,7 +31,10 @@ func _draw() -> void:
 
 
 func _draw_walls() -> void:
-	var structure := get_tree().current_scene.get_node_or_null("Room/Structure")
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var structure := scene.get_node_or_null("Room/Structure")
 	if structure == null:
 		return
 	for wall in structure.find_children("*", "StaticBody3D", true, false):
