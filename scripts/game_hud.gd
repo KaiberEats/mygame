@@ -264,6 +264,7 @@ func _apply_responsive_layout() -> void:
 		Vector2(margin, margin + minimap_size + 12.0 * _hud_scale),
 		Vector2(240.0 * _hud_scale, 40.0 * _hud_scale)
 	)
+	deck_count_label.custom_minimum_size = Vector2(240.0, 40.0) * _hud_scale
 	deck_count_label.add_theme_font_size_override("font_size", roundi(26.0 * _hud_scale))
 
 	var card_size := Vector2(72.0, 104.0) * _hud_scale
@@ -284,6 +285,7 @@ func _apply_responsive_layout() -> void:
 	kill_button.offset_top = -margin - button_size.y
 	kill_button.offset_right = -margin
 	kill_button.offset_bottom = -margin
+	kill_button.custom_minimum_size = button_size
 	kill_button.add_theme_font_size_override("font_size", roundi(28.0 * _hud_scale))
 
 	var change_size := Vector2(158.0, 58.0) * _hud_scale
@@ -291,6 +293,7 @@ func _apply_responsive_layout() -> void:
 	change_button.offset_top = kill_button.offset_top
 	change_button.offset_right = kill_button.offset_left - 12.0 * _hud_scale
 	change_button.offset_bottom = kill_button.offset_bottom
+	change_button.custom_minimum_size = change_size
 	change_button.add_theme_font_size_override("font_size", roundi(28.0 * _hud_scale))
 
 	var item_size := Vector2.ONE * (92.0 * _hud_scale)
@@ -298,11 +301,15 @@ func _apply_responsive_layout() -> void:
 	item_slot.offset_top = kill_button.offset_top - 16.0 * _hud_scale - item_size.y
 	item_slot.offset_right = -margin
 	item_slot.offset_bottom = kill_button.offset_top - 16.0 * _hud_scale
+	item_slot.custom_minimum_size = item_size
+	item_slot.queue_redraw()
 
 	_kill_cooldown_clock.offset_left = item_slot.offset_left - 116.0 * _hud_scale
 	_kill_cooldown_clock.offset_top = item_slot.offset_top + 10.0 * _hud_scale
 	_kill_cooldown_clock.offset_right = _kill_cooldown_clock.offset_left + 104.0 * _hud_scale
 	_kill_cooldown_clock.offset_bottom = _kill_cooldown_clock.offset_top + 72.0 * _hud_scale
+	_kill_cooldown_clock.custom_minimum_size = Vector2(104.0, 72.0) * _hud_scale
+	_kill_cooldown_clock.queue_redraw()
 
 	_set_control_rect(_time_label, Vector2(margin, -70.0 * _hud_scale), Vector2(220.0, 50.0) * _hud_scale)
 	_time_label.add_theme_font_size_override("font_size", roundi(32.0 * _hud_scale))
@@ -319,6 +326,9 @@ func _apply_responsive_layout() -> void:
 		Vector2(margin, margin + minimap_size + 72.0 * _hud_scale),
 		Vector2(280.0, 92.0) * _hud_scale
 	)
+	for label in _exposure_list.get_children():
+		if label is Label:
+			label.add_theme_font_size_override("font_size", roundi(18.0 * _hud_scale))
 
 	var panel_size := Vector2(480.0, 100.0) * _hud_scale
 	for panel in [_exchange_panel, _stun_panel]:
@@ -351,6 +361,16 @@ func _apply_responsive_layout() -> void:
 	viewed_panel.offset_top = 142.0 * _hud_scale
 	viewed_panel.offset_right = 380.0 * _hud_scale
 	viewed_panel.offset_bottom = 284.0 * _hud_scale
+	viewed_name.custom_minimum_size = Vector2(100.0, 0.0) * _hud_scale
+	viewed_name.add_theme_font_size_override("font_size", roundi(18.0 * _hud_scale))
+	viewed_hand.add_theme_constant_override("separation", roundi(6.0 * _hud_scale))
+	$Root/ViewedHandPanel/Content.add_theme_constant_override("separation", roundi(12.0 * _hud_scale))
+
+	var editor_size := Vector2(720.0, 170.0) * _hud_scale
+	_set_control_rect(hand_editor, -editor_size * 0.5, editor_size)
+	$Root/HandEditor/Content.add_theme_constant_override("separation", roundi(12.0 * _hud_scale))
+	$Root/HandEditor/Content/InstructionLabel.add_theme_font_size_override("font_size", roundi(20.0 * _hud_scale))
+	editor_hand_container.add_theme_constant_override("separation", roundi(8.0 * _hud_scale))
 
 	if _crosshair != null:
 		_set_control_rect(_crosshair, Vector2(-12.0, -12.0) * _hud_scale, Vector2(24.0, 24.0) * _hud_scale)

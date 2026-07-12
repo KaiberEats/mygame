@@ -66,6 +66,8 @@ func _ready() -> void:
 	settings_menu.back_requested.connect(_show_pause_menu)
 	game_hud.hand_reordered.connect(_on_hand_reordered)
 	game_hud.debug_return_requested.connect(_force_return_to_waiting_room)
+	if not NetworkManager.peers_changed.is_connected(_refresh_network_player_profiles):
+		NetworkManager.peers_changed.connect(_refresh_network_player_profiles)
 	_configure_computers()
 	_spawn_network_players()
 	player.ensure_local_camera()
@@ -1422,6 +1424,24 @@ func _spawn_network_players() -> void:
 		if int(peer_id) == local_peer:
 			player = remote_player
 			player.ensure_local_camera()
+
+
+func _refresh_network_player_profiles() -> void:
+	if not NetworkManager.is_online:
+		if player != null:
+			player.display_name = GameConfig.player_name
+			if player.has_method("set_body_color"):
+				player.set_body_color(GameConfig.player_color())
+		return
+	for participant in _participants:
+		if not is_instance_valid(participant):
+			continue
+		var peer_id := _peer_for_participant(participant)
+		if peer_id <= 0:
+			continue
+		participant.display_name = NetworkManager.get_player_name(peer_id)
+		if participant.has_method("set_body_color"):
+			participant.set_body_color(NetworkManager.get_player_color(peer_id))
 
 
 func _spawn_position_for_index(index: int) -> Vector3:

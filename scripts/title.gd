@@ -17,6 +17,9 @@ var _host_button: Button
 var _address_edit: LineEdit
 var _join_button: Button
 var _mode_back_button: Button
+var _title_layout: BoxContainer
+var _image_area: Control
+var _title_label: Label
 var _menu_host: VBoxContainer
 var _joker_button: TextureButton
 var _joker_timer: Timer
@@ -42,7 +45,9 @@ func _ready() -> void:
 	_build_settings_button()
 	_build_mode_menu()
 	GameConfig.language_changed.connect(_update_language)
+	get_viewport().size_changed.connect(_apply_responsive_layout)
 	_update_language()
+	_apply_responsive_layout()
 
 
 func _setup_title_layout() -> void:
@@ -51,15 +56,13 @@ func _setup_title_layout() -> void:
 	var existing_menu := center.get_node("VBoxContainer") as VBoxContainer
 	center.remove_child(existing_menu)
 
-	var layout := HBoxContainer.new()
-	layout.name = "TitleLayout"
-	layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_theme_constant_override("separation", 72)
-	center.add_child(layout)
+	_title_layout = HBoxContainer.new()
+	_title_layout.name = "TitleLayout"
+	_title_layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(_title_layout)
 
-	var image_area := Control.new()
-	image_area.custom_minimum_size = Vector2(520, 560)
-	layout.add_child(image_area)
+	_image_area = Control.new()
+	_title_layout.add_child(_image_area)
 
 	_joker_button = TextureButton.new()
 	_joker_button.texture_normal = JOKER_TEXTURE
@@ -69,26 +72,74 @@ func _setup_title_layout() -> void:
 	_joker_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	_joker_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_joker_button.pressed.connect(_play_joker_gif)
-	image_area.add_child(_joker_button)
+	_image_area.add_child(_joker_button)
 
 	_menu_host = VBoxContainer.new()
 	_menu_host.name = "MenuHost"
-	_menu_host.custom_minimum_size = Vector2(360, 560)
 	_menu_host.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_child(_menu_host)
+	_title_layout.add_child(_menu_host)
 
 	existing_menu.alignment = BoxContainer.ALIGNMENT_CENTER
 	_menu_host.add_child(existing_menu)
-	var title_label := existing_menu.get_node("TitleLabel") as Label
-	title_label.add_theme_color_override("font_color", Color.WHITE)
-	title_label.add_theme_color_override("font_shadow_color", Color(0.6, 0.0, 0.0))
-	title_label.add_theme_constant_override("shadow_offset_x", 4)
-	title_label.add_theme_constant_override("shadow_offset_y", 4)
+	_title_label = existing_menu.get_node("TitleLabel") as Label
+	_title_label.add_theme_color_override("font_color", Color.WHITE)
+	_title_label.add_theme_color_override("font_shadow_color", Color(0.6, 0.0, 0.0))
+	_title_label.add_theme_constant_override("shadow_offset_x", 4)
+	_title_label.add_theme_constant_override("shadow_offset_y", 4)
 
 	_joker_timer = Timer.new()
 	_joker_timer.wait_time = 0.14
 	_joker_timer.timeout.connect(_advance_joker_gif)
 	add_child(_joker_timer)
+
+
+func _apply_responsive_layout() -> void:
+	if _title_layout == null:
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	var layout_scale := clampf(minf(viewport_size.x / 1280.0, viewport_size.y / 720.0), 0.55, 1.65)
+	var is_narrow := viewport_size.x < 820.0 or viewport_size.x < viewport_size.y
+	var parent := _title_layout.get_parent()
+	var old_index := _title_layout.get_index()
+	var old_layout := _title_layout
+	var children := _title_layout.get_children()
+	for child in children:
+		old_layout.remove_child(child)
+	parent.remove_child(old_layout)
+	if is_narrow:
+		_title_layout = VBoxContainer.new()
+	else:
+		_title_layout = HBoxContainer.new()
+	_title_layout.name = "TitleLayout"
+	_title_layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	_title_layout.add_theme_constant_override("separation", roundi((28.0 if is_narrow else 72.0) * layout_scale))
+	parent.add_child(_title_layout)
+	parent.move_child(_title_layout, old_index)
+	for child in children:
+		_title_layout.add_child(child)
+	old_layout.queue_free()
+
+	var image_size := Vector2(430.0, 360.0) * layout_scale if is_narrow else Vector2(520.0, 560.0) * layout_scale
+	var menu_size := Vector2(330.0, 330.0) * layout_scale if is_narrow else Vector2(360.0, 560.0) * layout_scale
+	_image_area.custom_minimum_size = image_size
+	_menu_host.custom_minimum_size = menu_size
+	_title_label.add_theme_font_size_override("font_size", roundi((72.0 if is_narrow else 96.0) * layout_scale))
+	_main_menu.add_theme_constant_override("separation", roundi(28.0 * layout_scale))
+	if _mode_menu != null:
+		_mode_menu.add_theme_constant_override("separation", roundi(18.0 * layout_scale))
+	for button in [_game_start_button, _tutorial_button, _settings_button, _quit_button]:
+		if button != null:
+			button.custom_minimum_size = Vector2(240.0, 56.0) * layout_scale
+			button.add_theme_font_size_override("font_size", roundi(28.0 * layout_scale))
+	if _single_button != null:
+		for control in [_single_button, _host_button, _join_button, _mode_back_button]:
+			control.custom_minimum_size = Vector2(300.0, 56.0) * layout_scale
+			control.add_theme_font_size_override("font_size", roundi(24.0 * layout_scale))
+		_port_spin.custom_minimum_size = Vector2(300.0, 44.0) * layout_scale
+		_address_edit.custom_minimum_size = Vector2(300.0, 44.0) * layout_scale
+		_mode_title.add_theme_font_size_override("font_size", roundi(42.0 * layout_scale))
 
 
 func _start_single_player() -> void:

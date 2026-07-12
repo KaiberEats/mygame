@@ -380,6 +380,7 @@ func _save_changes() -> void:
 	GameConfig.player_name = _pending_player_name
 	GameConfig.player_color_name = _pending_player_color_name
 	GameConfig.set_ui_size_percent(_pending_ui_size_percent)
+	NetworkManager.update_local_profile()
 	for action in REBINDABLE_ACTIONS:
 		InputMap.action_erase_events(action)
 		for event in _pending_bindings.get(action, []):

@@ -77,6 +77,21 @@ func get_player_color(peer_id: int) -> Color:
 	return GameConfig.color_for_name(color_name)
 
 
+func update_local_profile() -> void:
+	if not is_online:
+		return
+	var peer_id := multiplayer.get_unique_id()
+	if multiplayer.is_server():
+		peer_id = 1
+	players[peer_id] = GameConfig.player_name
+	player_colors[peer_id] = GameConfig.player_color_name
+	if multiplayer.is_server():
+		_receive_roster.rpc(players, player_colors)
+		peers_changed.emit()
+	else:
+		_register_player.rpc_id(1, GameConfig.player_name, GameConfig.player_color_name)
+
+
 func _on_peer_connected(_peer_id: int) -> void:
 	if multiplayer.is_server():
 		_receive_roster.rpc_id(_peer_id, players, player_colors)

@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://bx6cahjxj14u4" path="res://scenes/Player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/PauseMenu.tscn" id="2_pause"]
-[ext_resource type="PackedScene" uid="uid://cnei72ua7e3ey" path="res://table_b_fixed.tscn" id="3_1dpr7"]
+[ext_resource type="PackedScene" path="res://scenes/table_b_fixed.tscn" id="3_1dpr7"]
 [ext_resource type="Script" uid="uid://b5n11s1rfmnr0" path="res://scripts/main.gd" id="3_main"]
 [ext_resource type="PackedScene" path="res://scenes/Deck.tscn" id="4_deck"]
 [ext_resource type="PackedScene" path="res://scenes/GameHud.tscn" id="5_hud"]

@@ -64,8 +64,17 @@ func _physics_process(delta: float) -> void:
 		_update_third_person_camera()
 		return
 
-	if is_stunned() or not _input_enabled:
+	if is_stunned():
 		velocity = Vector3.ZERO
+		move_and_slide()
+		_update_third_person_camera()
+		return
+
+	if not _input_enabled:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if is_on_floor() and velocity.y < 0.0:
+			velocity.y = 0.0
 		move_and_slide()
 		_update_third_person_camera()
 		return
