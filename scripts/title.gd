@@ -434,6 +434,10 @@ func _refresh_eos_status() -> void:
 		_eos_status_label.text = _eos_text("EOS: 初期化完了", "EOS: Ready")
 		_eos_status_label.add_theme_color_override("font_color", Color(0.75, 0.9, 1.0))
 		_set_eos_controls_enabled(true)
+	elif EOSManager.initialization_has_failed:
+		_eos_status_label.text = _eos_text("EOS初期化失敗", "EOS initialization failed") + ": " + EOSManager.last_error
+		_eos_status_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+		_set_eos_controls_enabled(false)
 	else:
 		_eos_status_label.text = _eos_text("EOS: 初期化中...", "EOS: Initializing...")
 		_eos_status_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
@@ -442,7 +446,7 @@ func _refresh_eos_status() -> void:
 
 func _set_eos_controls_enabled(is_enabled: bool) -> void:
 	if _eos_credential_edit != null:
-		_eos_credential_edit.editable = is_enabled
+		_eos_credential_edit.editable = not EOSManager.is_logged_in
 	if _eos_login_button != null:
 		_eos_login_button.disabled = not is_enabled
 	if _open_lobby_button != null:

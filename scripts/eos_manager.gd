@@ -17,6 +17,7 @@ const REQUIRED_VALUES := [
 ]
 
 var is_initialized := false
+var initialization_has_failed := false
 var is_logged_in := false
 var last_error := ""
 
@@ -73,6 +74,7 @@ func initialize_async() -> bool:
 		push_warning("EOS SDKのログレベル設定に失敗しました: %s" % EOS.result_str(log_result))
 
 	is_initialized = true
+	initialization_has_failed = false
 	last_error = ""
 	initialization_completed.emit()
 	print("EOS Platform initialized successfully.")
@@ -141,6 +143,7 @@ func _config_value(config: ConfigFile, section: String, key: String) -> String:
 
 
 func _fail_initialization(message: String) -> bool:
+	initialization_has_failed = true
 	last_error = message
 	push_error(message)
 	initialization_failed.emit(message)
