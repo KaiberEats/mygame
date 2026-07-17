@@ -25,25 +25,25 @@ albedo_color = Color(0.9701136, 0.24797735, 0.24925572, 1)
 
 [node name="table_b_fixed" unique_id=1375194175 instance=ExtResource("1_gwvli")]
 
-[node name="base_001" parent="." index="0" unique_id=1833364331]
+[node name="base_001" parent="." index="0" unique_id=1975143250]
 material_override = SubResource("StandardMaterial3D_gwvli")
 
-[node name="Cube" parent="." index="1" unique_id=253786136]
+[node name="Cube" parent="." index="1" unique_id=1776790832]
 material_override = SubResource("StandardMaterial3D_5yvkr")
 
-[node name="Cube_001" parent="." index="2" unique_id=2099439805]
+[node name="Cube_001" parent="." index="2" unique_id=1822554176]
 material_override = SubResource("StandardMaterial3D_trheu")
 
-[node name="Cube_002" parent="." index="3" unique_id=1349106537]
+[node name="Cube_002" parent="." index="3" unique_id=18899317]
 material_override = SubResource("StandardMaterial3D_xk1ow")
 
-[node name="metal_part" parent="." index="4" unique_id=1832674180]
+[node name="metal_part" parent="." index="4" unique_id=847991972]
 material_override = SubResource("StandardMaterial3D_yfn27")
 
-[node name="Plane_001" parent="." index="5" unique_id=710045018]
+[node name="Plane_001" parent="." index="5" unique_id=1008115512]
 material_override = SubResource("StandardMaterial3D_p6l5y")
 
-[node name="CollisionBody" type="StaticBody3D" parent="." index="6"]
+[node name="CollisionBody" type="StaticBody3D" parent="." index="6" unique_id=112239167]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CollisionBody" index="0" unique_id=1377203636]
 transform = Transform3D(1.6, 0, 0, 0, 0.2, 0, 0, 0, 1, 0, 0.7337368, 0)
