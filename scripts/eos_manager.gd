@@ -35,6 +35,11 @@ func initialize_async() -> bool:
 	if is_initialized:
 		return true
 
+	if not FileAccess.file_exists(CREDENTIALS_PATH):
+		return _skip_initialization(
+			"EOS未設定: %s が無いためオンライン機能は無効です（シングル/LAN対戦は利用可能）。" % CREDENTIALS_PATH
+		)
+
 	var config := ConfigFile.new()
 	var load_error := config.load(CREDENTIALS_PATH)
 	if load_error != OK:
@@ -146,6 +151,14 @@ func _fail_initialization(message: String) -> bool:
 	initialization_has_failed = true
 	last_error = message
 	push_error(message)
+	initialization_failed.emit(message)
+	return false
+
+
+func _skip_initialization(message: String) -> bool:
+	initialization_has_failed = true
+	last_error = message
+	print(message)
 	initialization_failed.emit(message)
 	return false
 
