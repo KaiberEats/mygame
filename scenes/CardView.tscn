@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/card_view.gd" id="1_card_view"]
+[ext_resource type="Script" path="res://scripts/ui/card_view.gd" id="1_card_view"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
 bg_color = Color(1, 1, 1, 1)

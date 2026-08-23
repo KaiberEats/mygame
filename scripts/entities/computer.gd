@@ -1,6 +1,6 @@
 extends CharacterBody3D
 
-const HAND_SORTER := preload("res://scripts/hand_sorter.gd")
+const HAND_SORTER := preload("res://scripts/util/hand_sorter.gd")
 
 @export var move_speed: float = 4.0
 @export var turn_speed: float = 1.8

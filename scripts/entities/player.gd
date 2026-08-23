@@ -2,7 +2,7 @@ extends CharacterBody3D
 
 signal hand_changed(cards: Array[Dictionary])
 
-const HAND_SORTER := preload("res://scripts/hand_sorter.gd")
+const HAND_SORTER := preload("res://scripts/util/hand_sorter.gd")
 
 @export var move_speed: float = 7.0
 @export var mouse_sensitivity: float = 0.0025

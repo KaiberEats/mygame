@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/PauseMenu.tscn" id="2_pause_menu"]
-[ext_resource type="Script" path="res://scripts/waiting_room.gd" id="3_main"]
+[ext_resource type="Script" path="res://scripts/ui/waiting_room.gd" id="3_main"]
 [ext_resource type="PackedScene" path="res://scenes/Deck.tscn" id="4_deck"]
 [ext_resource type="PackedScene" path="res://scenes/GameHud.tscn" id="5_game_hud"]
 [ext_resource type="PackedScene" path="res://scenes/Computer.tscn" id="6_computer"]

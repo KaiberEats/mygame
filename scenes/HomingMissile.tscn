@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cvaubspmapf41"]
 
-[ext_resource type="Script" uid="uid://b866q3nmxim65" path="res://scripts/homing_missile.gd" id="1"]
+[ext_resource type="Script" uid="uid://b866q3nmxim65" path="res://scripts/entities/homing_missile.gd" id="1"]
 
 [sub_resource type="StandardMaterial3D" id="Material"]
 albedo_color = Color(0.01, 0.01, 0.01, 1)
