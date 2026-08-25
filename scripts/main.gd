@@ -34,13 +34,7 @@ var _player_kill_target: Node3D = null
 var _player_change_target: Node3D = null
 var _player_exchange_target: StaticBody3D = null
 var _change_killers: Dictionary = {}
-var _kill_cooldown_until: Dictionary = {}
-var _ability_cooldown_until: Dictionary = {}
 var _computer_pair_action_time_left := 0.0
-var _items: Dictionary = {}
-var _effects: Dictionary = {}
-var _card_views: Dictionary = {}
-var _map_reveals: Dictionary = {}
 var _time_left := 600.0
 var _game_ending := false
 var _exchange_hold_time := 0.0
@@ -78,9 +72,7 @@ func _ready() -> void:
 			_participants.append(child)
 	_cache_participant_spawn_positions()
 	for participant in _participants:
-		_effects[participant] = {}
-		_kill_cooldown_until[participant] = 0.0
-		_ability_cooldown_until[participant] = 0.0
+		_attach_components(participant)
 		_was_stunned[participant] = participant.is_stunned()
 	_setup_exchange_stations()
 	if _is_game_authority():
@@ -331,7 +323,7 @@ func _update_automatic_kills() -> void:
 	for attacker in _participants:
 		if attacker.is_stunned() or not _is_effect_active(attacker, "automatic_kill_until"):
 			continue
-		var effects: Dictionary = _effects[attacker]
+		var effects: Dictionary = _status(attacker).data
 		var previous_targets: Dictionary = effects.get("automatic_kill_targets", {})
 		var current_targets: Dictionary = {}
 		for target in _participants:
@@ -352,12 +344,12 @@ func _update_automatic_kills() -> void:
 func _perform_kill(attacker: Node3D, target: Node3D) -> void:
 	if _get_kill_cooldown_left(attacker) > 0.0:
 		return
-	_kill_cooldown_until[attacker] = _now() + KILL_COOLDOWN_SECONDS
+	_cooldown(attacker).kill_until = _now() + KILL_COOLDOWN_SECONDS
 	_perform_kill_with_options(attacker, target, true, true)
 
 
 func _perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: bool, consume_extra_kill: bool) -> void:
-	var effects: Dictionary = _effects[target]
+	var effects: Dictionary = _status(target).data
 	if _is_effect_active(target, "invincible_until"):
 		return
 	if _is_effect_active(target, "counter_until"):
@@ -374,7 +366,7 @@ func _perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: 
 
 	var used_extra_kill: bool = consume_extra_kill and not attacker.has_joker() and _has_extra_kill(attacker)
 	if used_extra_kill:
-		var attacker_effects: Dictionary = _effects[attacker]
+		var attacker_effects: Dictionary = _status(attacker).data
 		attacker_effects["extra_kill_available"] = false
 		if attacker.has_method("set_can_kill_without_joker"):
 			attacker.set_can_kill_without_joker(false)
@@ -414,7 +406,7 @@ func _perform_change(attacker: Node3D, target: Node3D, forced_free_change: bool 
 	_show_change_preview_for_participant(target, target_card, attacker_card)
 	_change_killers.erase(target)
 	if free_change:
-		var effects: Dictionary = _effects[attacker]
+		var effects: Dictionary = _status(attacker).data
 		if forced_free_change:
 			effects["coin_count"] = maxi(int(effects.get("coin_count", 0)) - 1, 0)
 			if int(effects.get("coin_count", 0)) <= 0:
@@ -445,7 +437,7 @@ func _set_hand_editor_open(is_open: bool) -> void:
 
 func _request_use_button_action() -> void:
 	var scythe_target := _find_scythe_target(player)
-	var player_effects: Dictionary = _effects.get(player, {})
+	var player_effects: Dictionary = _status(player).data
 	if _has_ready_scythe(player) and (scythe_target != null or bool(player_effects.get("scythe_enhanced", false))):
 		var target_name := ""
 		if scythe_target != null:
@@ -471,7 +463,7 @@ func _on_player_hand_changed(cards: Array[Dictionary]) -> void:
 
 
 func grant_item(participant: Node3D, item_name: String, duration: float = 0.0, icon: Texture2D = null) -> void:
-	_items[participant] = {
+	_item(participant).data = {
 		"name": item_name,
 		"duration": maxf(duration, 0.0),
 		"time_left": maxf(duration, 0.0),
@@ -506,7 +498,7 @@ func _try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 	participant.set_hand(updated_hand)
 
 	_activate_pair_ability(participant, ability_rank)
-	_ability_cooldown_until[participant] = _now() + ABILITY_COOLDOWN_SECONDS
+	_cooldown(participant).ability_until = _now() + ABILITY_COOLDOWN_SECONDS
 
 	_refill_hand(participant)
 
@@ -516,7 +508,7 @@ func _try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 
 func _activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
 	var now: float = _now()
-	var effects: Dictionary = _effects[participant]
+	var effects: Dictionary = _status(participant).data
 	var is_enhanced := bool(effects.get("enhance_next_ability", false))
 	if is_enhanced:
 		effects["enhance_next_ability"] = false
@@ -539,7 +531,7 @@ func _activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
 				participant.set_hand(enhanced_hand, true)
 		2:
 			grant_item(participant, "MISSILE", 20.0 if is_enhanced else 10.0)
-			_items[participant]["charges"] = 2 if is_enhanced else 1
+			_item(participant).data["charges"] = 2 if is_enhanced else 1
 		3:
 			effects["invincible_until"] = now + (10.0 if is_enhanced else 5.0)
 			participant.set_gold_outline(true)
@@ -553,11 +545,11 @@ func _activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
 				for target in _participants:
 					if target != participant:
 						targets.append(target)
-				_card_views[participant] = {"targets": targets, "until": now + 15.0}
+				_vision(participant).card_view = {"targets": targets, "until": now + 15.0}
 			else:
 				var nearest := _find_nearest_participant(participant)
 				if nearest != null:
-					_card_views[participant] = {"target": nearest, "until": now + 15.0}
+					_vision(participant).card_view = {"target": nearest, "until": now + 15.0}
 		6:
 			if is_enhanced:
 				effects["auto_cleanse_until"] = now + 30.0
@@ -589,7 +581,7 @@ func _activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
 			for target in _participants:
 				if target != participant:
 					positions[target] = target.global_position
-			_map_reveals[participant] = {
+			_vision(participant).map_reveal = {
 				"positions": positions,
 				"until": now + (20.0 if is_enhanced else 10.0),
 			}
@@ -659,32 +651,31 @@ func _get_pair_slot_from_event(event: InputEvent) -> int:
 
 
 func _update_items(delta: float) -> void:
-	for participant in _items.keys():
-		if not is_instance_valid(participant):
-			_items.erase(participant)
+	for participant in _participants:
+		if not is_instance_valid(participant) or not _item(participant).has_item():
 			continue
 
-		var item: Dictionary = _items[participant]
+		var item: Dictionary = _item(participant).data
 		var duration: float = float(item.get("duration", 0.0))
 		if duration <= 0.0:
 			continue
 
 		var time_left: float = maxf(float(item.get("time_left", 0.0)) - delta, 0.0)
 		if time_left <= 0.0:
-			_items.erase(participant)
+			_item(participant).clear()
 		else:
 			item["time_left"] = time_left
-			_items[participant] = item
+			_item(participant).data = item
 
 	_sync_player_item_slot()
 
 
 func _use_item(participant: Node3D) -> void:
-	if not _items.has(participant):
+	if not _item(participant).has_item():
 		_use_passive_item(participant, "")
 		return
 
-	var item: Dictionary = _items[participant]
+	var item: Dictionary = _item(participant).data
 	var item_name := String(item.get("name", ""))
 	if item_name == "MISSILE":
 		var target: Node3D = _find_visible_missile_target(participant)
@@ -696,9 +687,9 @@ func _use_item(participant: Node3D) -> void:
 	var charges_left := int(item.get("charges", 1)) - 1
 	if charges_left > 0:
 		item["charges"] = charges_left
-		_items[participant] = item
+		_item(participant).data = item
 	else:
-		_items.erase(participant)
+		_item(participant).clear()
 	_activate_item(participant, item_name)
 	_sync_player_item_slot()
 
@@ -718,7 +709,7 @@ func _use_passive_item(participant: Node3D, target_name: String) -> void:
 
 
 func _use_scythe(attacker: Node3D, target: Node3D) -> void:
-	var effects: Dictionary = _effects[attacker]
+	var effects: Dictionary = _status(attacker).data
 	if not _has_ready_scythe(attacker):
 		return
 	var remaining := maxf(float(effects.get("scythe_until", 0.0)) - _now(), 0.0)
@@ -733,7 +724,7 @@ func _use_scythe(attacker: Node3D, target: Node3D) -> void:
 	if target == null or _get_kill_cooldown_left(attacker) > 0.0:
 		_sync_player_item_slot()
 		return
-	_kill_cooldown_until[attacker] = _now() + KILL_COOLDOWN_SECONDS
+	_cooldown(attacker).kill_until = _now() + KILL_COOLDOWN_SECONDS
 	_perform_kill_with_options(attacker, target, false, false)
 	_sync_player_item_slot()
 
@@ -755,7 +746,7 @@ func _use_sword(attacker: Node3D) -> void:
 
 
 func _sync_player_item_slot() -> void:
-	if not _items.has(player):
+	if not _item(player).has_item():
 		var passive_item := _passive_item_slot_for(player)
 		if passive_item.is_empty():
 			game_hud.set_item("")
@@ -767,7 +758,7 @@ func _sync_player_item_slot() -> void:
 			)
 		return
 
-	var item: Dictionary = _items[player]
+	var item: Dictionary = _item(player).data
 	game_hud.set_item(
 		String(item.get("name", "")),
 		float(item.get("time_left", 0.0)),
@@ -777,9 +768,9 @@ func _sync_player_item_slot() -> void:
 
 
 func _passive_item_slot_for(participant: Node3D) -> Dictionary:
-	if not _effects.has(participant):
+	if not is_instance_valid(participant):
 		return {}
-	var effects: Dictionary = _effects[participant]
+	var effects: Dictionary = _status(participant).data
 	var now := _now()
 	var scythe_until := maxf(
 		float(effects.get("scythe_until", 0.0)),
@@ -829,7 +820,7 @@ func _refill_hand(participant: Node3D) -> void:
 func _update_effects() -> void:
 	var now: float = _now()
 	for participant in _participants:
-		var effects: Dictionary = _effects[participant]
+		var effects: Dictionary = _status(participant).data
 		if float(effects.get("invincible_until", 0.0)) > 0.0 and now >= float(effects["invincible_until"]):
 			effects.erase("invincible_until")
 			participant.set_gold_outline(false)
@@ -876,28 +867,29 @@ func _update_effects() -> void:
 			else:
 				effects.erase("auto_cleanse_at")
 
-	for viewer in _card_views.keys():
-		if now >= float(_card_views[viewer].get("until", 0.0)):
-			_card_views.erase(viewer)
-	for viewer in _map_reveals.keys():
-		if now >= float(_map_reveals[viewer].get("until", 0.0)):
-			_map_reveals.erase(viewer)
+	for viewer in _participants:
+		var cv: Dictionary = _vision(viewer).card_view
+		if not cv.is_empty() and now >= float(cv.get("until", 0.0)):
+			_vision(viewer).card_view = {}
+		var mr: Dictionary = _vision(viewer).map_reveal
+		if not mr.is_empty() and now >= float(mr.get("until", 0.0)):
+			_vision(viewer).map_reveal = {}
 	_sync_player_item_slot()
 
 
 func _update_player_information_hud() -> void:
 	var revealed_positions: Array[Vector3] = []
 	var empty_cards: Array[Dictionary] = []
-	var reveal_data: Dictionary = _map_reveals.get(player, {})
+	var reveal_data: Dictionary = _vision(player).map_reveal
 	var revealed: Dictionary = reveal_data.get("positions", {})
 	for revealed_position in revealed.values():
 		revealed_positions.append(revealed_position)
 	game_hud.set_minimap_data(player.global_position, revealed_positions)
 
-	if not _card_views.has(player):
+	if _vision(player).card_view.is_empty():
 		game_hud.set_viewed_hand("", empty_cards)
 		return
-	var view_data: Dictionary = _card_views[player]
+	var view_data: Dictionary = _vision(player).card_view
 	if view_data.has("targets"):
 		var names: Array[String] = []
 		var cards: Array[Dictionary] = []
@@ -909,7 +901,7 @@ func _update_player_information_hud() -> void:
 		return
 	var target: Node3D = view_data.get("target")
 	if not is_instance_valid(target):
-		_card_views.erase(player)
+		_vision(player).card_view = {}
 		game_hud.set_viewed_hand("", empty_cards)
 		return
 	game_hud.set_viewed_hand(_participant_name(target), target.hand)
@@ -920,7 +912,7 @@ func _update_player_exposure_hud() -> void:
 
 
 func _update_player_edge_status_effects() -> void:
-	var effects: Dictionary = _effects.get(player, {})
+	var effects: Dictionary = _status(player).data
 	game_hud.set_edge_status_effects(
 		player.has_joker(),
 		float(effects.get("invincible_until", 0.0)) > _now(),
@@ -929,15 +921,16 @@ func _update_player_edge_status_effects() -> void:
 
 
 func _is_location_revealed(target: Node3D) -> bool:
-	for reveal_data in _map_reveals.values():
-		var positions: Dictionary = reveal_data.get("positions", {})
+	for viewer in _participants:
+		var positions: Dictionary = _vision(viewer).map_reveal.get("positions", {})
 		if positions.has(target):
 			return true
 	return false
 
 
 func _is_hand_being_viewed(target: Node3D) -> bool:
-	for view_data in _card_views.values():
+	for viewer in _participants:
+		var view_data: Dictionary = _vision(viewer).card_view
 		if view_data.get("target") == target:
 			return true
 		if view_data.has("targets") and target in view_data["targets"]:
@@ -946,27 +939,27 @@ func _is_hand_being_viewed(target: Node3D) -> bool:
 
 
 func _has_extra_kill(participant: Node3D) -> bool:
-	var effects: Dictionary = _effects[participant]
+	var effects: Dictionary = _status(participant).data
 	return bool(effects.get("extra_kill_available", false)) and _is_effect_active(participant, "extra_kill_until")
 
 
 func _has_free_change(participant: Node3D) -> bool:
-	var effects: Dictionary = _effects[participant]
+	var effects: Dictionary = _status(participant).data
 	return int(effects.get("free_change_count", 0)) > 0 and _is_effect_active(participant, "free_change_until")
 
 
 func _has_ready_scythe(participant: Node3D) -> bool:
-	var effects: Dictionary = _effects[participant]
+	var effects: Dictionary = _status(participant).data
 	return float(effects.get("scythe_until", 0.0)) > _now()
 
 
 func _has_ready_coin(participant: Node3D) -> bool:
-	var effects: Dictionary = _effects[participant]
+	var effects: Dictionary = _status(participant).data
 	return int(effects.get("coin_count", 0)) > 0 and float(effects.get("coin_until", 0.0)) > _now()
 
 
 func _is_effect_active(participant: Node3D, key: String) -> bool:
-	return float(_effects[participant].get(key, 0.0)) > _now()
+	return float(_status(participant).data.get(key, 0.0)) > _now()
 
 
 func _update_post_stun_buffs() -> void:
@@ -974,7 +967,7 @@ func _update_post_stun_buffs() -> void:
 	for participant in _participants:
 		var is_stunned_now: bool = participant.is_stunned()
 		if bool(_was_stunned.get(participant, false)) and not is_stunned_now:
-			var effects: Dictionary = _effects[participant]
+			var effects: Dictionary = _status(participant).data
 			effects["invincible_until"] = maxf(
 				float(effects.get("invincible_until", 0.0)),
 				now + POST_STUN_BUFF_SECONDS
@@ -999,30 +992,31 @@ func _refresh_speed_multiplier(participant: Node3D) -> void:
 
 func _clear_negative_statuses(participant: Node3D) -> void:
 	participant.clear_stun()
-	for viewer in _card_views.keys():
-		var view_data: Dictionary = _card_views[viewer]
+	for viewer in _participants:
+		var view_data: Dictionary = _vision(viewer).card_view
 		if view_data.get("target") == participant:
-			_card_views.erase(viewer)
+			_vision(viewer).card_view = {}
 		elif view_data.has("targets"):
 			var targets: Array = view_data["targets"]
 			targets.erase(participant)
 			if targets.is_empty():
-				_card_views.erase(viewer)
-	for viewer in _map_reveals.keys():
-		var positions: Dictionary = _map_reveals[viewer].get("positions", {})
+				_vision(viewer).card_view = {}
+	for viewer in _participants:
+		var positions: Dictionary = _vision(viewer).map_reveal.get("positions", {})
 		positions.erase(participant)
 
 
 func _has_negative_status(participant: Node3D) -> bool:
 	if participant.is_stunned():
 		return true
-	for view_data in _card_views.values():
+	for viewer in _participants:
+		var view_data: Dictionary = _vision(viewer).card_view
 		if view_data.get("target") == participant:
 			return true
 		if view_data.has("targets") and participant in view_data["targets"]:
 			return true
-	for reveal_data in _map_reveals.values():
-		var positions: Dictionary = reveal_data.get("positions", {})
+	for viewer in _participants:
+		var positions: Dictionary = _vision(viewer).map_reveal.get("positions", {})
 		if positions.has(participant):
 			return true
 	return false
@@ -1108,7 +1102,7 @@ func _stun_without_change(target: Node3D) -> void:
 
 func _update_computer_items() -> void:
 	for participant in _participants:
-		if not _is_computer(participant) or participant.is_stunned() or not _items.has(participant):
+		if not _is_computer(participant) or participant.is_stunned() or not _item(participant).has_item():
 			continue
 		if randf() < 0.005:
 			_use_item(participant)
@@ -1314,11 +1308,11 @@ func _exchange_with_station(participant: Node3D, station_index: int, card_index:
 
 
 func _get_kill_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(_kill_cooldown_until.get(participant, 0.0)) - _now(), 0.0)
+	return maxf(float(_cooldown(participant).kill_until) - _now(), 0.0)
 
 
 func _get_ability_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(_ability_cooldown_until.get(participant, 0.0)) - _now(), 0.0)
+	return maxf(float(_cooldown(participant).ability_until) - _now(), 0.0)
 
 
 func _show_ability_not_ready(participant: Node3D) -> void:
@@ -1734,7 +1728,7 @@ func _can_server_kill(actor: Node3D, target: Node3D) -> bool:
 func _can_server_scythe(actor: Node3D, target: Node3D) -> bool:
 	if actor == null or actor.is_stunned() or not _has_ready_scythe(actor):
 		return false
-	var effects: Dictionary = _effects[actor]
+	var effects: Dictionary = _status(actor).data
 	if bool(effects.get("scythe_enhanced", false)):
 		return true
 	return (
@@ -1828,7 +1822,7 @@ func _build_game_state() -> Dictionary:
 			"invincible_until", "invisible_until", "free_change_until", "extra_kill_until", "scythe_until", "coin_until",
 			"counter_until", "automatic_kill_until", "auto_cleanse_until", "recovery_speed_until"
 		]:
-			var remaining := maxf(float(_effects[participant].get(key, 0.0)) - now, 0.0)
+			var remaining := maxf(float(_status(participant).data.get(key, 0.0)) - now, 0.0)
 			if remaining > 0.0:
 				effect_state[key] = remaining
 		for key in [
@@ -1836,8 +1830,8 @@ func _build_game_state() -> Dictionary:
 			"scythe_enhanced", "coin_count", "coin_duration",
 			"counter_duration", "barrier_charges", "enhance_next_ability"
 		]:
-			if _effects[participant].has(key):
-				effect_state[key] = _effects[participant][key]
+			if _status(participant).data.has(key):
+				effect_state[key] = _status(participant).data[key]
 		participant_states[participant.name] = {
 			"transform": participant.global_transform,
 			"hand": participant.hand,
@@ -1868,9 +1862,9 @@ func _build_game_state() -> Dictionary:
 
 
 func _network_item_for(participant: Node3D) -> Dictionary:
-	if not _items.has(participant):
+	if not _item(participant).has_item():
 		return {}
-	var item: Dictionary = _items[participant]
+	var item: Dictionary = _item(participant).data
 	return {
 		"name": item.get("name", ""),
 		"duration": item.get("duration", 0.0),
@@ -1881,8 +1875,10 @@ func _network_item_for(participant: Node3D) -> Dictionary:
 
 func _build_card_view_state(now: float) -> Dictionary:
 	var result: Dictionary = {}
-	for viewer in _card_views:
-		var view: Dictionary = _card_views[viewer]
+	for viewer in _participants:
+		var view: Dictionary = _vision(viewer).card_view
+		if view.is_empty():
+			continue
 		var data := {"remaining": maxf(float(view.get("until", 0.0)) - now, 0.0)}
 		if view.has("targets"):
 			var names: Array[String] = []
@@ -1898,8 +1894,10 @@ func _build_card_view_state(now: float) -> Dictionary:
 
 func _build_map_reveal_state(now: float) -> Dictionary:
 	var result: Dictionary = {}
-	for viewer in _map_reveals:
-		var reveal: Dictionary = _map_reveals[viewer]
+	for viewer in _participants:
+		var reveal: Dictionary = _vision(viewer).map_reveal
+		if reveal.is_empty():
+			continue
 		result[viewer.name] = {
 			"remaining": maxf(float(reveal.get("until", 0.0)) - now, 0.0),
 			"positions": reveal.get("positions", {}).values(),
@@ -1922,14 +1920,14 @@ func _receive_game_state(state: Dictionary) -> void:
 			participant.global_transform = data.get("transform", participant.global_transform)
 		participant.set_hand(data.get("hand", []))
 		participant.set_stun_state(float(data.get("stun", 0.0)), float(data.get("pending_stun", 0.0)))
-		_kill_cooldown_until[participant] = now + float(data.get("kill_cooldown", 0.0))
-		_ability_cooldown_until[participant] = now + float(data.get("ability_cooldown", 0.0))
+		_cooldown(participant).kill_until = now + float(data.get("kill_cooldown", 0.0))
+		_cooldown(participant).ability_until = now + float(data.get("ability_cooldown", 0.0))
 		_apply_effect_state(participant, data.get("effects", {}), now)
 		var item: Dictionary = data.get("item", {})
 		if item.is_empty():
-			_items.erase(participant)
+			_item(participant).clear()
 		else:
-			_items[participant] = item
+			_item(participant).data = item
 	var stations := _exchange_stations()
 	var station_cards: Array = state.get("stations", [])
 	for index in mini(stations.size(), station_cards.size()):
@@ -1952,7 +1950,7 @@ func _apply_effect_state(participant: Node3D, state: Dictionary, now: float) -> 
 			effects[key] = now + float(state[key])
 		else:
 			effects[key] = state[key]
-	_effects[participant] = effects
+	_status(participant).data = effects
 	participant.set_gold_outline(effects.has("invincible_until"))
 	participant.set_invisible(effects.has("invisible_until"))
 	_set_barrier_visual(participant, int(effects.get("barrier_charges", 0)) > 0)
@@ -1962,7 +1960,8 @@ func _apply_effect_state(participant: Node3D, state: Dictionary, now: float) -> 
 
 
 func _apply_card_view_state(state: Dictionary, now: float) -> void:
-	_card_views.clear()
+	for participant in _participants:
+		_vision(participant).card_view = {}
 	for viewer_name in state:
 		var viewer := _participant_by_name(String(viewer_name))
 		if viewer == null:
@@ -1980,11 +1979,12 @@ func _apply_card_view_state(state: Dictionary, now: float) -> void:
 			var target := _participant_by_name(String(source["target"]))
 			if target != null:
 				view["target"] = target
-		_card_views[viewer] = view
+		_vision(viewer).card_view = view
 
 
 func _apply_map_reveal_state(state: Dictionary, now: float) -> void:
-	_map_reveals.clear()
+	for participant in _participants:
+		_vision(participant).map_reveal = {}
 	for viewer_name in state:
 		var viewer := _participant_by_name(String(viewer_name))
 		if viewer == null:
@@ -1995,10 +1995,41 @@ func _apply_map_reveal_state(state: Dictionary, now: float) -> void:
 		for revealed_position in source.get("positions", []):
 			positions[index] = revealed_position
 			index += 1
-		_map_reveals[viewer] = {
+		_vision(viewer).map_reveal = {
 			"until": now + float(source.get("remaining", 0.0)),
 			"positions": positions,
 		}
+
+
+func _attach_components(participant: Node) -> void:
+	var status := StatusComponent.new()
+	status.name = "StatusComponent"
+	participant.add_child(status)
+	var cooldown := CooldownComponent.new()
+	cooldown.name = "CooldownComponent"
+	participant.add_child(cooldown)
+	var item := ItemComponent.new()
+	item.name = "ItemComponent"
+	participant.add_child(item)
+	var vision := VisionComponent.new()
+	vision.name = "VisionComponent"
+	participant.add_child(vision)
+
+
+func _status(participant: Node) -> StatusComponent:
+	return participant.get_node(^"StatusComponent")
+
+
+func _cooldown(participant: Node) -> CooldownComponent:
+	return participant.get_node(^"CooldownComponent")
+
+
+func _item(participant: Node) -> ItemComponent:
+	return participant.get_node(^"ItemComponent")
+
+
+func _vision(participant: Node) -> VisionComponent:
+	return participant.get_node(^"VisionComponent")
 
 
 func _now() -> float:
