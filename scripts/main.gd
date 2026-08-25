@@ -35,7 +35,10 @@ var _player_change_target: Node3D = null
 var _player_exchange_target: StaticBody3D = null
 var _change_killers: Dictionary = {}
 var _targeting := TargetingService.new()
-var _computer_pair_action_time_left := 0.0
+var _exchange: ExchangeSystem = null
+var _item_system: ItemSystem = null
+var _combat: CombatSystem = null
+var _ability: AbilitySystem = null
 var _time_left := 600.0
 var _game_ending := false
 var _exchange_hold_time := 0.0
@@ -75,6 +78,22 @@ func _ready() -> void:
 	for participant in _participants:
 		_attach_components(participant)
 		_was_stunned[participant] = participant.is_stunned()
+	_exchange = ExchangeSystem.new()
+	_exchange.name = "ExchangeSystem"
+	add_child(_exchange)
+	_exchange.setup(self)
+	_item_system = ItemSystem.new()
+	_item_system.name = "ItemSystem"
+	add_child(_item_system)
+	_item_system.setup(self)
+	_combat = CombatSystem.new()
+	_combat.name = "CombatSystem"
+	add_child(_combat)
+	_combat.setup(self)
+	_ability = AbilitySystem.new()
+	_ability.name = "AbilitySystem"
+	add_child(_ability)
+	_ability.setup(self)
 	_setup_exchange_stations()
 	if _is_game_authority():
 		deck.reset_and_shuffle(GameConfig.deck_size)
@@ -278,129 +297,27 @@ func _find_aimed_target(attacker: Node3D, for_change: bool) -> Node3D:
 
 
 func _try_computer_kills() -> void:
-	for participant in _participants:
-		if (
-			not _is_computer(participant)
-			or participant.is_stunned()
-			or _get_kill_cooldown_left(participant) > 0.0
-			or (not participant.has_joker() and not _has_extra_kill(participant))
-		):
-			continue
-
-		var target: Node3D = participant.get_chase_target()
-		if target != null and participant.global_position.distance_to(target.global_position) <= KILL_DISTANCE:
-			_perform_kill(participant, target)
-			if randf() < 0.5:
-				_perform_change(participant, target)
-			else:
-				_change_killers.erase(target)
+	_combat.try_computer_kills()
 
 
 func _update_automatic_kills() -> void:
-	for attacker in _participants:
-		if attacker.is_stunned() or not _is_effect_active(attacker, "automatic_kill_until"):
-			continue
-		var effects: Dictionary = _status(attacker).data
-		var previous_targets: Dictionary = effects.get("automatic_kill_targets", {})
-		var current_targets: Dictionary = {}
-		for target in _participants:
-			if (
-				target == attacker
-				or attacker.global_position.distance_to(target.global_position) > KILL_DISTANCE
-			):
-				continue
-			current_targets[target] = true
-			if previous_targets.has(target) or target.is_stunned():
-				continue
-			_perform_kill_with_options(attacker, target, false, false)
-			if attacker.is_stunned():
-				break
-		effects["automatic_kill_targets"] = current_targets
+	_combat.update_automatic_kills()
 
 
 func _perform_kill(attacker: Node3D, target: Node3D) -> void:
-	if _get_kill_cooldown_left(attacker) > 0.0:
-		return
-	_cooldown(attacker).kill_until = _now() + KILL_COOLDOWN_SECONDS
-	_perform_kill_with_options(attacker, target, true, true)
+	_combat.perform_kill(attacker, target)
 
 
 func _perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: bool, consume_extra_kill: bool) -> void:
-	var effects: Dictionary = _status(target).data
-	if _is_effect_active(target, "invincible_until"):
-		return
-	if _is_effect_active(target, "counter_until"):
-		_stun_without_change(attacker)
-		effects.erase("counter_until")
-		effects.erase("counter_duration")
-		_sync_player_item_slot()
-		return
-	if int(effects.get("barrier_charges", 0)) > 0:
-		effects["barrier_charges"] = int(effects["barrier_charges"]) - 1
-		_set_barrier_visual(target, int(effects.get("barrier_charges", 0)) > 0)
-		_sync_player_item_slot()
-		return
-
-	var used_extra_kill: bool = consume_extra_kill and not attacker.has_joker() and _has_extra_kill(attacker)
-	if used_extra_kill:
-		var attacker_effects: Dictionary = _status(attacker).data
-		attacker_effects["extra_kill_available"] = false
-		if attacker.has_method("set_can_kill_without_joker"):
-			attacker.set_can_kill_without_joker(false)
-		_sync_player_item_slot()
-	target.stun(STUN_SECONDS)
-	_show_kill_notifications(attacker, target)
-	if allow_change and not used_extra_kill:
-		_change_killers[target] = attacker
-	else:
-		_change_killers.erase(target)
-	_player_kill_target = null
-	_player_change_target = null
-	game_hud.set_kill_available(false)
-	game_hud.set_change_available(false)
+	_combat.perform_kill_with_options(attacker, target, allow_change, consume_extra_kill)
 
 
 func _perform_change(attacker: Node3D, target: Node3D, forced_free_change: bool = false) -> void:
-	var free_change := _has_free_change(attacker) or forced_free_change
-	if (
-		(not free_change and (_change_killers.get(target) != attacker or not target.is_stunned()))
-		or attacker.hand.is_empty()
-		or target.hand.is_empty()
-	):
-		return
-
-	var attacker_hand: Array[Dictionary] = attacker.hand.duplicate()
-	var target_hand: Array[Dictionary] = target.hand.duplicate()
-	var attacker_index := attacker_hand.size() - 1
-	var target_index := randi_range(0, target_hand.size() - 1)
-	var attacker_card: Dictionary = attacker_hand[attacker_index]
-	var target_card: Dictionary = target_hand[target_index]
-	attacker_hand[attacker_index] = target_hand[target_index]
-	target_hand[target_index] = attacker_card
-	attacker.set_hand(attacker_hand, true)
-	target.set_hand(target_hand, true)
-	_show_change_preview_for_participant(attacker, attacker_card, target_card)
-	_show_change_preview_for_participant(target, target_card, attacker_card)
-	_change_killers.erase(target)
-	if free_change:
-		var effects: Dictionary = _status(attacker).data
-		if forced_free_change:
-			effects["coin_count"] = maxi(int(effects.get("coin_count", 0)) - 1, 0)
-			if int(effects.get("coin_count", 0)) <= 0:
-				effects.erase("coin_until")
-				effects.erase("coin_duration")
-		else:
-			effects["free_change_count"] = maxi(int(effects.get("free_change_count", 0)) - 1, 0)
-		_sync_player_item_slot()
-
-	_player_change_target = null
-	game_hud.set_change_available(false)
+	_combat.perform_change(attacker, target, forced_free_change)
 
 
 func _clear_expired_change_rights() -> void:
-	for target in _change_killers.keys():
-		if not is_instance_valid(target) or (not target.is_stunned() and not target.is_stun_pending()):
-			_change_killers.erase(target)
+	_combat.clear_expired_change_rights()
 
 
 func _set_hand_editor_open(is_open: bool) -> void:
@@ -440,346 +357,63 @@ func _on_player_hand_changed(cards: Array[Dictionary]) -> void:
 
 
 func grant_item(participant: Node3D, item_name: String, duration: float = 0.0, icon: Texture2D = null) -> void:
-	_item(participant).data = {
-		"name": item_name,
-		"duration": maxf(duration, 0.0),
-		"time_left": maxf(duration, 0.0),
-		"icon": icon,
-	}
-	_sync_player_item_slot()
+	_item_system.grant(participant, item_name, duration, icon)
 
 
 func _try_use_pair(participant: Node3D, pair_slot: int) -> bool:
-	if _get_ability_cooldown_left(participant) > 0.0:
-		_show_ability_not_ready(participant)
-		return false
-
-	var first_index := pair_slot * 2
-	var second_index := first_index + 1
-	if second_index >= participant.hand.size():
-		return false
-
-	var first_card: Dictionary = participant.hand[first_index]
-	var second_card: Dictionary = participant.hand[second_index]
-	if (
-		first_card.get("suit", "") == "joker"
-		or second_card.get("suit", "") == "joker"
-		or int(first_card.get("rank", 0)) != int(second_card.get("rank", 0))
-	):
-		return false
-
-	var ability_rank := int(first_card.get("rank", 0))
-	var updated_hand: Array[Dictionary] = participant.hand.duplicate()
-	updated_hand.remove_at(second_index)
-	updated_hand.remove_at(first_index)
-	participant.set_hand(updated_hand)
-
-	_activate_pair_ability(participant, ability_rank)
-	_cooldown(participant).ability_until = _now() + ABILITY_COOLDOWN_SECONDS
-
-	_refill_hand(participant)
-
-	game_hud.set_deck_count(deck.remaining_count(), deck.total_count())
-	return true
+	return _ability.try_use_pair(participant, pair_slot)
 
 
 func _activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
-	var now: float = _now()
-	var effects: Dictionary = _status(participant).data
-	var is_enhanced := bool(effects.get("enhance_next_ability", false))
-	if is_enhanced:
-		effects["enhance_next_ability"] = false
-	match ability_rank:
-		1:
-			var kept_cards: Array[Dictionary] = []
-			var returned_cards: Array[Dictionary] = []
-			for card in participant.hand:
-				if card.get("suit", "") == "joker":
-					kept_cards.append(card)
-				else:
-					returned_cards.append(card)
-			deck.return_cards(returned_cards)
-			participant.set_hand(kept_cards)
-			if is_enhanced:
-				var missing_count: int = maxi(HAND_SIZE - kept_cards.size(), 0)
-				var paired_cards: Array[Dictionary] = deck.draw_pair_focused_cards(missing_count)
-				var enhanced_hand: Array[Dictionary] = kept_cards.duplicate()
-				enhanced_hand.append_array(paired_cards)
-				participant.set_hand(enhanced_hand, true)
-		2:
-			grant_item(participant, "MISSILE", 20.0 if is_enhanced else 10.0)
-			_item(participant).data["charges"] = 2 if is_enhanced else 1
-		3:
-			effects["invincible_until"] = now + (10.0 if is_enhanced else 5.0)
-			participant.set_gold_outline(true)
-		4:
-			effects["scythe_until"] = now + 15.0
-			effects["scythe_enhanced"] = is_enhanced
-			_sync_player_item_slot()
-		5:
-			if is_enhanced:
-				var targets: Array[Node3D] = []
-				for target in _participants:
-					if target != participant:
-						targets.append(target)
-				_vision(participant).card_view = {"targets": targets, "until": now + 15.0}
-			else:
-				var nearest := _find_nearest_participant(participant)
-				if nearest != null:
-					_vision(participant).card_view = {"target": nearest, "until": now + 15.0}
-		6:
-			if is_enhanced:
-				effects["auto_cleanse_until"] = now + 30.0
-				effects.erase("auto_cleanse_at")
-			else:
-				_clear_negative_statuses(participant)
-		7:
-			effects["invisible_until"] = now + (20.0 if is_enhanced else 10.0)
-			participant.set_invisible(true)
-		8:
-			effects["coin_duration"] = 30.0 if is_enhanced else 20.0
-			effects["coin_until"] = now + float(effects["coin_duration"])
-			effects["coin_count"] = 2 if is_enhanced else 1
-			_refresh_speed_multiplier(participant)
-			_sync_player_item_slot()
-		9:
-			effects["counter_duration"] = 6.0 if is_enhanced else 3.0
-			effects["counter_until"] = now + float(effects["counter_duration"])
-			_sync_player_item_slot()
-		10:
-			var copies_left := 2 if is_enhanced else 1
-			var source_hand: Array[Dictionary] = participant.hand.duplicate()
-			for card in source_hand:
-				if card.get("suit", "") != "joker" and copies_left > 0:
-					participant.add_card(card.duplicate())
-					copies_left -= 1
-		11:
-			var positions: Dictionary = {}
-			for target in _participants:
-				if target != participant:
-					positions[target] = target.global_position
-			_vision(participant).map_reveal = {
-				"positions": positions,
-				"until": now + (20.0 if is_enhanced else 10.0),
-			}
-		12:
-			effects["barrier_charges"] = 2 if is_enhanced else 1
-			_set_barrier_visual(participant, true)
-			_sync_player_item_slot()
-		13:
-			if is_enhanced:
-				grant_item(participant, "SWORD")
-			else:
-				effects["enhance_next_ability"] = true
-	if participant == player:
-		game_hud.show_notification("%d  %s" % [ability_rank, _get_ability_message(ability_rank, is_enhanced)])
-	elif NetworkManager.is_online and _peer_for_participant(participant) > 0:
-		_show_remote_notification.rpc_id(
-			_peer_for_participant(participant),
-			"%d  %s" % [ability_rank, _get_ability_message(ability_rank, is_enhanced)]
-		)
+	_ability.activate_pair_ability(participant, ability_rank)
 
 
 func _update_computer_pair_actions(delta: float) -> void:
-	_computer_pair_action_time_left -= delta
-	if _computer_pair_action_time_left > 0.0:
-		return
-
-	_reset_computer_pair_action_timer()
-	for participant in _participants:
-		if not _is_computer(participant) or participant.is_stunned() or randf() > COMPUTER_PAIR_ACTION_CHANCE:
-			continue
-
-		var valid_pair_slots: Array[int] = []
-		for pair_slot in range(4):
-			if _is_valid_pair_slot(participant, pair_slot):
-				valid_pair_slots.append(pair_slot)
-		if not valid_pair_slots.is_empty():
-			_try_use_pair(participant, valid_pair_slots.pick_random())
+	_ability.update_computer_pair_actions(delta)
 
 
 func _is_valid_pair_slot(participant: Node3D, pair_slot: int) -> bool:
-	var first_index := pair_slot * 2
-	var second_index := first_index + 1
-	if second_index >= participant.hand.size():
-		return false
-
-	var first_card: Dictionary = participant.hand[first_index]
-	var second_card: Dictionary = participant.hand[second_index]
-	return (
-		first_card.get("suit", "") != "joker"
-		and second_card.get("suit", "") != "joker"
-		and int(first_card.get("rank", 0)) == int(second_card.get("rank", 0))
-	)
+	return _ability.is_valid_pair_slot(participant, pair_slot)
 
 
 func _reset_computer_pair_action_timer() -> void:
-	_computer_pair_action_time_left = randf_range(
-		COMPUTER_PAIR_ACTION_MIN_SECONDS,
-		COMPUTER_PAIR_ACTION_MAX_SECONDS
-	)
+	_ability.reset_computer_pair_action_timer()
 
 
 func _get_pair_slot_from_event(event: InputEvent) -> int:
-	for index in range(4):
-		if event.is_action_pressed("pair_%d" % (index + 1)):
-			return index
-	return -1
+	return _ability.get_pair_slot_from_event(event)
 
 
 func _update_items(delta: float) -> void:
-	for participant in _participants:
-		if not is_instance_valid(participant) or not _item(participant).has_item():
-			continue
-
-		var item: Dictionary = _item(participant).data
-		var duration: float = float(item.get("duration", 0.0))
-		if duration <= 0.0:
-			continue
-
-		var time_left: float = maxf(float(item.get("time_left", 0.0)) - delta, 0.0)
-		if time_left <= 0.0:
-			_item(participant).clear()
-		else:
-			item["time_left"] = time_left
-			_item(participant).data = item
-
-	_sync_player_item_slot()
+	_item_system.update(delta)
 
 
 func _use_item(participant: Node3D) -> void:
-	if not _item(participant).has_item():
-		_use_passive_item(participant, "")
-		return
-
-	var item: Dictionary = _item(participant).data
-	var item_name := String(item.get("name", ""))
-	if item_name == "MISSILE":
-		var target: Node3D = _find_visible_missile_target(participant)
-		if target == null:
-			return
-		_launch_missile(participant, target)
-	elif item_name == "SWORD":
-		_use_sword(participant)
-	var charges_left := int(item.get("charges", 1)) - 1
-	if charges_left > 0:
-		item["charges"] = charges_left
-		_item(participant).data = item
-	else:
-		_item(participant).clear()
-	_activate_item(participant, item_name)
-	_sync_player_item_slot()
+	_item_system.use(participant)
 
 
 func _activate_item(_participant: Node3D, _item_name: String) -> void:
-	pass
+	_item_system.activate(_participant, _item_name)
 
 
 func _use_passive_item(participant: Node3D, target_name: String) -> void:
-	if _has_ready_scythe(participant):
-		var target := _participant_by_name(target_name)
-		_use_scythe(participant, target)
-	elif _has_ready_coin(participant):
-		var target := _participant_by_name(target_name)
-		if target != null:
-			_perform_change(participant, target, true)
+	_item_system.use_passive(participant, target_name)
 
 
 func _use_scythe(attacker: Node3D, target: Node3D) -> void:
-	var effects: Dictionary = _status(attacker).data
-	if not _has_ready_scythe(attacker):
-		return
-	var remaining := maxf(float(effects.get("scythe_until", 0.0)) - _now(), 0.0)
-	var is_enhanced := bool(effects.get("scythe_enhanced", false))
-	effects.erase("scythe_until")
-	effects.erase("scythe_enhanced")
-	if is_enhanced:
-		effects["automatic_kill_until"] = _now() + remaining
-		effects["automatic_kill_targets"] = {}
-		_sync_player_item_slot()
-		return
-	if target == null or _get_kill_cooldown_left(attacker) > 0.0:
-		_sync_player_item_slot()
-		return
-	_cooldown(attacker).kill_until = _now() + KILL_COOLDOWN_SECONDS
-	_perform_kill_with_options(attacker, target, false, false)
-	_sync_player_item_slot()
+	_combat.use_scythe(attacker, target)
 
 
 func _use_sword(attacker: Node3D) -> void:
-	for target in _participants:
-		if target == attacker or attacker.global_position.distance_to(target.global_position) > KILL_DISTANCE:
-			continue
-
-		# Sword hits intentionally bypass invincibility, barriers, counters, and other defenses.
-		target.stun(STUN_SECONDS)
-		_show_kill_notifications(attacker, target)
-		_change_killers[target] = attacker
-
-	_player_kill_target = null
-	_player_change_target = null
-	game_hud.set_kill_available(false)
-	game_hud.set_change_available(false)
+	_combat.use_sword(attacker)
 
 
 func _sync_player_item_slot() -> void:
-	if not _item(player).has_item():
-		var passive_item := _passive_item_slot_for(player)
-		if passive_item.is_empty():
-			game_hud.set_item("")
-		else:
-			game_hud.set_item(
-				String(passive_item.get("name", "")),
-				float(passive_item.get("time_left", 0.0)),
-				float(passive_item.get("duration", 0.0))
-			)
-		return
-
-	var item: Dictionary = _item(player).data
-	game_hud.set_item(
-		String(item.get("name", "")),
-		float(item.get("time_left", 0.0)),
-		float(item.get("duration", 0.0)),
-		item.get("icon") as Texture2D
-	)
+	_item_system.sync_player_slot()
 
 
 func _passive_item_slot_for(participant: Node3D) -> Dictionary:
-	if not is_instance_valid(participant):
-		return {}
-	var effects: Dictionary = _status(participant).data
-	var now := _now()
-	var scythe_until := maxf(
-		float(effects.get("scythe_until", 0.0)),
-		float(effects.get("automatic_kill_until", 0.0))
-	)
-	if scythe_until > now:
-		return {
-			"name": "SCYTHE",
-			"time_left": scythe_until - now,
-			"duration": 15.0,
-		}
-	var coin_until := float(effects.get("coin_until", 0.0))
-	if int(effects.get("coin_count", 0)) > 0 and coin_until > now:
-		return {
-			"name": "COIN",
-			"time_left": coin_until - now,
-			"duration": float(effects.get("coin_duration", 20.0)),
-		}
-	var rapier_until := float(effects.get("counter_until", 0.0))
-	if rapier_until > now:
-		return {
-			"name": "RAPIER",
-			"time_left": rapier_until - now,
-			"duration": float(effects.get("counter_duration", 3.0)),
-		}
-	if int(effects.get("barrier_charges", 0)) > 0:
-		return {
-			"name": "SHIELD",
-			"time_left": 0.0,
-			"duration": 0.0,
-		}
-	return {}
+	return _item_system.passive_slot_for(participant)
 
 
 func _refill_hand(participant: Node3D) -> void:
@@ -1038,18 +672,11 @@ func on_missile_hit(target: Node3D) -> void:
 
 
 func _stun_without_change(target: Node3D) -> void:
-	if _is_effect_active(target, "invincible_until"):
-		return
-	target.stun(STUN_SECONDS)
-	_change_killers.erase(target)
+	_combat.stun_without_change(target)
 
 
 func _update_computer_items() -> void:
-	for participant in _participants:
-		if not _is_computer(participant) or participant.is_stunned() or not _item(participant).has_item():
-			continue
-		if randf() < 0.005:
-			_use_item(participant)
+	_item_system.update_computer_items()
 
 
 func _try_computer_free_changes() -> void:
@@ -1062,193 +689,36 @@ func _try_computer_free_changes() -> void:
 
 
 func _setup_exchange_stations() -> void:
-	for station_position in [Vector3(0.0, 0.0, -40.0), Vector3(0.0, 0.0, 40.0)]:
-		var station := StaticBody3D.new()
-		station.name = "ExchangeStation"
-		station.position = station_position
-		station.add_to_group("exchange_stations")
-		add_child(station)
-
-		var pedestal_mesh := BoxMesh.new()
-		pedestal_mesh.size = Vector3(3.0, 1.5, 3.0)
-		var pedestal := MeshInstance3D.new()
-		pedestal.position.y = 0.75
-		pedestal.mesh = pedestal_mesh
-		var pedestal_material := StandardMaterial3D.new()
-		pedestal_material.albedo_color = Color(0.16, 0.09, 0.035)
-		pedestal.material_override = pedestal_material
-		station.add_child(pedestal)
-
-		for card_index in EXCHANGE_CARD_COUNT:
-			var hidden_card_mesh := BoxMesh.new()
-			hidden_card_mesh.size = Vector3(0.85, 0.12, 1.35)
-			var hidden_card := MeshInstance3D.new()
-			hidden_card.name = "CardSlot_%d" % card_index
-			hidden_card.position = _exchange_card_local_position(card_index)
-			hidden_card.mesh = hidden_card_mesh
-			var card_material := StandardMaterial3D.new()
-			card_material.albedo_color = Color(0.04, 0.04, 0.05)
-			card_material.emission_enabled = true
-			card_material.emission = Color(0.28, 0.18, 0.04)
-			hidden_card.material_override = card_material
-			station.add_child(hidden_card)
-
-			var card_label := Label3D.new()
-			card_label.name = "CardLabel_%d" % card_index
-			card_label.position = hidden_card.position + Vector3(0.0, 0.09, 0.0)
-			card_label.rotation_degrees.x = -90.0
-			if station_position.z > 0.0:
-				card_label.rotation_degrees.y = 180.0
-			card_label.font_size = 42
-			card_label.modulate = Color.WHITE
-			card_label.outline_size = 8
-			card_label.outline_modulate = Color.BLACK
-			card_label.text = "?"
-			station.add_child(card_label)
-
-		var shape := BoxShape3D.new()
-		shape.size = Vector3(3.0, 1.5, 3.0)
-		var collision := CollisionShape3D.new()
-		collision.position.y = 0.75
-		collision.shape = shape
-		station.add_child(collision)
+	_exchange.setup_stations()
 
 
 
 func _deal_exchange_station_cards() -> void:
-	for station in _exchange_stations():
-		var station_cards: Array[Dictionary] = deck.draw_cards(EXCHANGE_CARD_COUNT)
-		_set_station_cards(station, station_cards)
+	_exchange.deal_cards()
 
 
 func _exchange_card_local_position(card_index: int) -> Vector3:
-	var centered_index := float(card_index) - float(EXCHANGE_CARD_COUNT - 1) * 0.5
-	return Vector3(centered_index * EXCHANGE_CARD_SPACING, 1.56, 0.0)
+	return _exchange.card_local_position(card_index)
 
 
 func _station_cards(station: StaticBody3D) -> Array[Dictionary]:
-	var cards: Array[Dictionary] = []
-	for card in station.get_meta("cards", []):
-		if card is Dictionary:
-			cards.append(card)
-	if cards.is_empty() and station.has_meta("card"):
-		var old_card = station.get_meta("card")
-		if old_card is Dictionary:
-			cards.append(old_card)
-	return cards
+	return _exchange.station_cards(station)
 
 
 func _set_station_cards(station: StaticBody3D, cards: Array) -> void:
-	var typed_cards: Array[Dictionary] = []
-	for card in cards:
-		if card is Dictionary:
-			typed_cards.append(card)
-	station.set_meta("cards", typed_cards)
-	if typed_cards.is_empty():
-		station.remove_meta("card")
-	else:
-		station.set_meta("card", typed_cards[0])
-	for card_index in EXCHANGE_CARD_COUNT:
-		var mesh := station.get_node_or_null("CardSlot_%d" % card_index) as MeshInstance3D
-		var label := station.get_node_or_null("CardLabel_%d" % card_index) as Label3D
-		var has_card := card_index < typed_cards.size()
-		if mesh != null:
-			mesh.visible = has_card
-			if has_card:
-				var material := mesh.material_override as StandardMaterial3D
-				if material != null:
-					material.albedo_color = Color(0.04, 0.04, 0.05)
-					material.emission = Color(0.28, 0.18, 0.04)
-		if label != null:
-			label.visible = has_card
-			if has_card:
-				label.text = "?"
-				label.modulate = Color.WHITE
+	_exchange.set_station_cards(station, cards)
 
 
 func _find_aimed_exchange_station() -> StaticBody3D:
-	_player_exchange_card_index = -1
-	if player.is_stunned() or player.hand.is_empty() or game_hud.is_hand_editor_open():
-		return null
-	var best_station: StaticBody3D = null
-	var best_dot := KILL_CENTER_DOT
-	for station_node in get_tree().get_nodes_in_group("exchange_stations"):
-		var station := station_node as StaticBody3D
-		if station == null:
-			continue
-		var station_cards := _station_cards(station)
-		for card_index in station_cards.size():
-			var card_position := station.to_global(_exchange_card_local_position(card_index))
-			var to_card: Vector3 = card_position - player.get_view_origin()
-			if to_card.length() > KILL_DISTANCE + 1.5:
-				continue
-			var center_dot: float = player.get_view_forward().dot(to_card.normalized())
-			if center_dot > best_dot:
-				best_dot = center_dot
-				best_station = station
-				_player_exchange_card_index = card_index
-	return best_station
+	return _exchange.find_aimed_station()
 
 
 func _update_exchange_hold(delta: float) -> void:
-	var is_pressed := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	if _exchange_locked_until_release:
-		if not is_pressed:
-			_exchange_locked_until_release = false
-		return
-
-	if not is_pressed or _player_exchange_target == null:
-		_exchange_hold_time = 0.0
-		_exchange_hold_target = null
-		_exchange_hold_card_index = -1
-		game_hud.set_exchange_progress(0.0, false)
-		return
-
-	if _exchange_hold_target != _player_exchange_target or _exchange_hold_card_index != _player_exchange_card_index:
-		_exchange_hold_target = _player_exchange_target
-		_exchange_hold_card_index = _player_exchange_card_index
-		_exchange_hold_time = 0.0
-	_exchange_hold_time = minf(_exchange_hold_time + delta, EXCHANGE_HOLD_SECONDS)
-	game_hud.set_exchange_progress(_exchange_hold_time / EXCHANGE_HOLD_SECONDS, true)
-	if _exchange_hold_time >= EXCHANGE_HOLD_SECONDS:
-		var station_index := _exchange_stations().find(_exchange_hold_target)
-		if _is_game_authority():
-			_exchange_with_station(player, station_index, _exchange_hold_card_index)
-		else:
-			_request_exchange.rpc_id(1, station_index, _exchange_hold_card_index)
-		_exchange_hold_time = 0.0
-		_exchange_hold_target = null
-		_exchange_hold_card_index = -1
-		_exchange_locked_until_release = true
+	_exchange.update_hold(delta)
 
 
 func _exchange_with_station(participant: Node3D, station_index: int, card_index: int) -> void:
-	var stations := _exchange_stations()
-	if station_index < 0 or station_index >= stations.size():
-		return
-	var station: StaticBody3D = stations[station_index]
-	var station_cards := _station_cards(station)
-	if card_index < 0 or card_index >= station_cards.size() or participant.hand.is_empty():
-		return
-	var hand: Array[Dictionary] = participant.hand.duplicate()
-	var hand_index := hand.size() - 1
-	var player_card: Dictionary = hand[hand_index]
-	if player_card.get("suit", "") == "joker":
-		if participant == player:
-			game_hud.show_notification(GameConfig.text("joker_exchange"))
-		elif NetworkManager.is_online and _peer_for_participant(participant) > 0:
-			_show_remote_notification.rpc_id(_peer_for_participant(participant), GameConfig.text("joker_exchange"))
-		return
-	var station_card: Dictionary = station_cards[card_index]
-	hand[hand_index] = station_card
-	station_cards[card_index] = player_card
-	_set_station_cards(station, station_cards)
-	participant.set_hand(hand, true)
-	_show_change_preview_for_participant(participant, player_card, station_card)
-	if participant == player:
-		game_hud.show_change_complete()
-	elif NetworkManager.is_online and _peer_for_participant(participant) > 0:
-		_show_remote_exchange_complete.rpc_id(_peer_for_participant(participant))
+	_exchange.exchange_with_station(participant, station_index, card_index)
 
 
 func _get_kill_cooldown_left(participant: Node3D) -> float:
@@ -1260,29 +730,15 @@ func _get_ability_cooldown_left(participant: Node3D) -> float:
 
 
 func _show_ability_not_ready(participant: Node3D) -> void:
-	if participant == player:
-		game_hud.show_notification(GameConfig.text("ability_not_ready"))
-	elif NetworkManager.is_online and _peer_for_participant(participant) > 0:
-		_show_remote_notification.rpc_id(_peer_for_participant(participant), GameConfig.text("ability_not_ready"))
+	_ability.show_ability_not_ready(participant)
 
 
 func _set_barrier_visual(participant: Node3D, is_active: bool) -> void:
-	if participant != null and participant.has_method("set_barrier_active"):
-		participant.set_barrier_active(is_active)
+	_combat.set_barrier_visual(participant, is_active)
 
 
 func _show_kill_notifications(attacker: Node3D, target: Node3D) -> void:
-	if target == player:
-		game_hud.show_notification(GameConfig.text("killed"))
-	elif NetworkManager.is_online and _peer_for_participant(target) > 0:
-		_show_remote_notification.rpc_id(_peer_for_participant(target), GameConfig.text("killed"))
-	if attacker == player:
-		game_hud.show_notification(GameConfig.text("kill_notice") % _participant_name(target))
-	elif NetworkManager.is_online and _peer_for_participant(attacker) > 0:
-		_show_remote_notification.rpc_id(
-			_peer_for_participant(attacker),
-			GameConfig.text("kill_notice") % _participant_name(target)
-		)
+	_combat.show_kill_notifications(attacker, target)
 
 
 func _get_ability_message(rank: int, is_enhanced: bool) -> String:
@@ -1615,16 +1071,26 @@ func _show_change_preview_for_participant(participant: Node3D, before_card: Dict
 		_show_remote_change_preview.rpc_id(_peer_for_participant(participant), before_card, after_card)
 
 
+func request_exchange_remote(station_index: int, card_index: int) -> void:
+	_request_exchange.rpc_id(1, station_index, card_index)
+
+
+func notify_participant(participant: Node3D, message: String) -> void:
+	if participant == player:
+		game_hud.show_notification(message)
+	elif NetworkManager.is_online and _peer_for_participant(participant) > 0:
+		_show_remote_notification.rpc_id(_peer_for_participant(participant), message)
+
+
+func notify_exchange_complete(participant: Node3D) -> void:
+	if participant == player:
+		game_hud.show_change_complete()
+	elif NetworkManager.is_online and _peer_for_participant(participant) > 0:
+		_show_remote_exchange_complete.rpc_id(_peer_for_participant(participant))
+
+
 func _exchange_stations() -> Array[StaticBody3D]:
-	var stations: Array[StaticBody3D] = []
-	for node in get_tree().get_nodes_in_group("exchange_stations"):
-		var station := node as StaticBody3D
-		if station != null:
-			stations.append(station)
-	stations.sort_custom(func(a: StaticBody3D, b: StaticBody3D) -> bool:
-		return a.global_position.z < b.global_position.z
-	)
-	return stations
+	return _exchange.stations()
 
 
 func _request_local_action(action: String, value: int = 0, target_name: String = "") -> void:
