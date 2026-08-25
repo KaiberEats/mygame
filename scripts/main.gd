@@ -34,6 +34,7 @@ var _player_kill_target: Node3D = null
 var _player_change_target: Node3D = null
 var _player_exchange_target: StaticBody3D = null
 var _change_killers: Dictionary = {}
+var _targeting := TargetingService.new()
 var _computer_pair_action_time_left := 0.0
 var _time_left := 600.0
 var _game_ending := false
@@ -273,31 +274,7 @@ func _find_coin_change_target(attacker: Node3D) -> Node3D:
 
 
 func _find_aimed_target(attacker: Node3D, for_change: bool) -> Node3D:
-	var view_origin: Vector3 = attacker.get_view_origin()
-	var view_forward: Vector3 = attacker.get_view_forward()
-	var best_target: Node3D = null
-	var best_dot := KILL_CENTER_DOT
-
-	for target in _participants:
-		if target == attacker:
-			continue
-		if for_change:
-			if not target.is_stunned() or _change_killers.get(target) != attacker or target.hand.is_empty():
-				continue
-		elif target.is_stunned():
-			continue
-
-		var to_target := target.global_position + Vector3(0.0, 1.0, 0.0) - view_origin
-		var distance := to_target.length()
-		if distance > KILL_DISTANCE:
-			continue
-
-		var center_dot := view_forward.dot(to_target.normalized())
-		if center_dot > best_dot:
-			best_dot = center_dot
-			best_target = target
-
-	return best_target
+	return _targeting.find_aimed(attacker, _participants, _change_killers, for_change, KILL_DISTANCE, KILL_CENTER_DOT)
 
 
 func _try_computer_kills() -> void:
@@ -1023,48 +1000,15 @@ func _has_negative_status(participant: Node3D) -> bool:
 
 
 func _find_nearest_participant(participant: Node3D) -> Node3D:
-	var nearest: Node3D = null
-	var nearest_distance := INF
-	for target in _participants:
-		if target == participant:
-			continue
-		var distance := participant.global_position.distance_squared_to(target.global_position)
-		if distance < nearest_distance:
-			nearest_distance = distance
-			nearest = target
-	return nearest
+	return _targeting.find_nearest(participant, _participants)
 
 
 func _find_visible_missile_target(shooter: Node3D) -> Node3D:
-	var candidates: Array[Node3D] = []
-	if shooter == player:
-		var best_dot := KILL_CENTER_DOT
-		for target in _participants:
-			if target == shooter:
-				continue
-			var direction: Vector3 = (target.global_position + Vector3.UP - shooter.get_view_origin()).normalized()
-			var dot: float = shooter.get_view_forward().dot(direction)
-			if dot > best_dot and _has_line_of_sight(shooter, target):
-				best_dot = dot
-				candidates = [target]
-	else:
-		for target in _participants:
-			if target != shooter and _has_line_of_sight(shooter, target):
-				candidates.append(target)
-		candidates.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-			return shooter.global_position.distance_squared_to(a.global_position) < shooter.global_position.distance_squared_to(b.global_position)
-		)
-	return candidates[0] if not candidates.is_empty() else null
+	return _targeting.find_visible_missile(shooter, _participants, player, KILL_CENTER_DOT)
 
 
 func _has_line_of_sight(shooter: Node3D, target: Node3D) -> bool:
-	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
-		shooter.get_view_origin(),
-		target.global_position + Vector3.UP
-	)
-	query.exclude = [shooter]
-	var result: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
-	return not result.is_empty() and result.get("collider") == target
+	return _targeting.has_line_of_sight(shooter, target)
 
 
 func _launch_missile(shooter: Node3D, target: Node3D) -> void:
