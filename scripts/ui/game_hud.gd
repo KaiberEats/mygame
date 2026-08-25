@@ -5,7 +5,7 @@ signal debug_return_requested
 
 const CARD_VIEW_SCENE := preload("res://scenes/CardView.tscn")
 const ITEM_SLOT_SCRIPT := preload("res://scripts/ui/item_slot.gd")
-const EDGE_STATUS_EFFECT_SCRIPT := preload("res://scripts/effects/edge_status_effect.gd")
+const EDGE_STATUS_EFFECT_SCRIPT := preload("res://scripts/ui/effects/edge_status_effect.gd")
 
 @onready var deck_count_label: Label = $Root/DeckCountLabel
 @onready var hand_container: HBoxContainer = $Root/HandContainer

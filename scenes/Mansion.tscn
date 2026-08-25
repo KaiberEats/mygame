@@ -8,7 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/GameHud.tscn" id="5_hud"]
 [ext_resource type="PackedScene" path="res://scenes/Computer.tscn" id="6_computer"]
 [ext_resource type="PackedScene" path="res://scenes/Settings.tscn" id="7_settings"]
-[ext_resource type="Script" uid="uid://b3271108yrwbi" path="res://scripts/managers/mansion_builder.gd" id="8_mansion"]
+[ext_resource type="Script" uid="uid://b3271108yrwbi" path="res://scripts/map/mansion_builder.gd" id="8_mansion"]
 
 [sub_resource type="Environment" id="Environment_mansion"]
 background_mode = 1

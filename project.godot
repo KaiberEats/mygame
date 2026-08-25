@@ -18,7 +18,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameConfig="*res://scripts/config/game_config.gd"
-NetworkManager="*res://scripts/network/network_manager.gd"
+NetworkManager="*res://scripts/net/network_manager.gd"
 EOSGRuntime="*uid://7saywdx0ipep"
 HPlatform="*uid://yl2muvqrdiud"
 HAuth="*uid://786t1jiowvvg"
@@ -29,8 +29,8 @@ HLeaderboards="*uid://b06khhf20mplm"
 HLobbies="*uid://6iqvm33q0tb1"
 HP2P="*uid://u6ae5fpm6l8q"
 HSessions="*uid://bieh2rxxahuu2"
-EOSManager="*res://scripts/network/eos_manager.gd"
-EOSLobbyManager="*res://scripts/network/eos_lobby_manager.gd"
+EOSManager="*res://scripts/net/eos_manager.gd"
+EOSLobbyManager="*res://scripts/net/eos_lobby_manager.gd"
 
 [editor_plugins]
 
