@@ -4,3 +4,5 @@
 
 # Local Epic Online Services credentials. Never commit this file.
 /eos_credentials.local.cfg
+
+.DS_Store
