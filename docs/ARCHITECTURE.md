@@ -99,8 +99,10 @@ Player (CharacterBody3D, player.gd)
 | `item_system.gd` | Systems | アイテムの付与 / 使用 / 更新 |
 | `exchange_system.gd` | Systems | 交換ステーションの処理 |
 | `net_sync.gd` | Systems | RPC の受け口・操作の妥当性確認（ホスト側）。RPC を受けるため固定名の Node にする |
+| `status_system.gd` | Systems | 効果の期限処理(tick)・状態問い合わせ・視界(覗き見/開示)クエリ |
 | `game_flow.gd` | Systems | 制限時間・終了条件・リザルト |
 | `game_hud.gd` / `pause_menu.gd` / `settings.gd` | UI | 表示 |
+| `player_controller.gd` | UI | ローカル入力受付・メニュー(ポーズ/設定/チュートリアル)・行動要求への変換 |
 | `deck.gd` | Services | 山札・カード配布 |
 | `player.gd` / `computer.gd` / `homing_missile.gd` | Entities | 移動・見た目・手札。`computer.gd` は AI の意思決定を持つ |
 
@@ -131,12 +133,12 @@ Player (CharacterBody3D, player.gd)
 ```
 scripts/
   match.gd                     Composition Root（エントリ。scripts/ 直下の単独ファイル）
-  systems/        combat_system  ability_system  item_system  exchange_system  game_flow
+  systems/        combat_system  ability_system  item_system  exchange_system  status_system  game_flow
   abilities/      ability(基底)  ability_context  ability_01..13
   entities/       player  computer  homing_missile  participants
      components/  status_component  cooldown_component  item_component  vision_component
   net/            net_sync  game_state_codec  network_manager  eos_manager  eos_lobby_manager
-  ui/             game_hud  hud_presenter  minimap  item_slot  card_view
+  ui/             game_hud  hud_presenter  player_controller  minimap  item_slot  card_view
                   pause_menu  settings  title  tutorial  lobby  waiting_room
      effects/     edge_status_effect
   services/       deck
