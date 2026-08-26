@@ -63,7 +63,7 @@ func can_server_kill(actor: Node3D, target: Node3D) -> bool:
 
 
 func can_server_scythe(actor: Node3D, target: Node3D) -> bool:
-	if actor == null or actor.is_stunned() or not _game._has_ready_scythe(actor):
+	if actor == null or actor.is_stunned() or not _game._status_system.has_ready_scythe(actor):
 		return false
 	var effects: Dictionary = _game._status(actor).data
 	if bool(effects.get("scythe_enhanced", false)):
@@ -84,7 +84,7 @@ func can_server_change(actor: Node3D, target: Node3D) -> bool:
 		and not actor.is_stunned()
 		and not actor.hand.is_empty()
 		and not target.hand.is_empty()
-		and (_game._has_free_change(actor) or (_game._change_killers.get(target) == actor and target.is_stunned()))
+		and (_game._status_system.has_free_change(actor) or (_game._change_killers.get(target) == actor and target.is_stunned()))
 	)
 
 
@@ -96,5 +96,5 @@ func can_server_coin_change(actor: Node3D, target: Node3D) -> bool:
 		and not target.is_stunned()
 		and not actor.hand.is_empty()
 		and not target.hand.is_empty()
-		and _game._has_ready_coin(actor)
+		and _game._status_system.has_ready_coin(actor)
 	)

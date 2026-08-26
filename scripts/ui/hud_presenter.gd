@@ -61,7 +61,7 @@ func _update_information() -> void:
 
 
 func _update_exposure() -> void:
-	_view.set_exposure_status(_game._is_location_revealed(_game.player), _game._is_hand_being_viewed(_game.player))
+	_view.set_exposure_status(_game._status_system.is_location_revealed(_game.player), _game._status_system.is_hand_being_viewed(_game.player))
 
 
 func _update_edge_status() -> void:

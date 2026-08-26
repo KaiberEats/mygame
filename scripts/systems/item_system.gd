@@ -70,10 +70,10 @@ func activate(_participant: Node3D, _item_name: String) -> void:
 
 
 func use_passive(participant: Node3D, target_name: String) -> void:
-	if _game._has_ready_scythe(participant):
+	if _game._status_system.has_ready_scythe(participant):
 		var target: Node3D = _game._participant_by_name(target_name)
 		_game._use_scythe(participant, target)
-	elif _game._has_ready_coin(participant):
+	elif _game._status_system.has_ready_coin(participant):
 		var target: Node3D = _game._participant_by_name(target_name)
 		if target != null:
 			_game._perform_change(participant, target, true)

@@ -18,7 +18,7 @@ func try_computer_kills() -> void:
 			not _game._is_computer(participant)
 			or participant.is_stunned()
 			or _game._get_kill_cooldown_left(participant) > 0.0
-			or (not participant.has_joker() and not _game._has_extra_kill(participant))
+			or (not participant.has_joker() and not _game._status_system.has_extra_kill(participant))
 		):
 			continue
 
@@ -33,7 +33,7 @@ func try_computer_kills() -> void:
 
 func update_automatic_kills() -> void:
 	for attacker in _game._participants:
-		if attacker.is_stunned() or not _game._is_effect_active(attacker, "automatic_kill_until"):
+		if attacker.is_stunned() or not _game._status_system.is_effect_active(attacker, "automatic_kill_until"):
 			continue
 		var effects: Dictionary = _game._status(attacker).data
 		var previous_targets: Dictionary = effects.get("automatic_kill_targets", {})
@@ -62,9 +62,9 @@ func perform_kill(attacker: Node3D, target: Node3D) -> void:
 
 func perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: bool, consume_extra_kill: bool) -> void:
 	var effects: Dictionary = _game._status(target).data
-	if _game._is_effect_active(target, "invincible_until"):
+	if _game._status_system.is_effect_active(target, "invincible_until"):
 		return
-	if _game._is_effect_active(target, "counter_until"):
+	if _game._status_system.is_effect_active(target, "counter_until"):
 		stun_without_change(attacker)
 		effects.erase("counter_until")
 		effects.erase("counter_duration")
@@ -76,7 +76,7 @@ func perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: b
 		_game._sync_player_item_slot()
 		return
 
-	var used_extra_kill: bool = consume_extra_kill and not attacker.has_joker() and _game._has_extra_kill(attacker)
+	var used_extra_kill: bool = consume_extra_kill and not attacker.has_joker() and _game._status_system.has_extra_kill(attacker)
 	if used_extra_kill:
 		var attacker_effects: Dictionary = _game._status(attacker).data
 		attacker_effects["extra_kill_available"] = false
@@ -96,7 +96,7 @@ func perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: b
 
 
 func perform_change(attacker: Node3D, target: Node3D, forced_free_change: bool = false) -> void:
-	var free_change: bool = _game._has_free_change(attacker) or forced_free_change
+	var free_change: bool = _game._status_system.has_free_change(attacker) or forced_free_change
 	if (
 		(not free_change and (_game._change_killers.get(target) != attacker or not target.is_stunned()))
 		or attacker.hand.is_empty()
@@ -140,7 +140,7 @@ func clear_expired_change_rights() -> void:
 
 func use_scythe(attacker: Node3D, target: Node3D) -> void:
 	var effects: Dictionary = _game._status(attacker).data
-	if not _game._has_ready_scythe(attacker):
+	if not _game._status_system.has_ready_scythe(attacker):
 		return
 	var remaining: float = maxf(float(effects.get("scythe_until", 0.0)) - _game._now(), 0.0)
 	var is_enhanced := bool(effects.get("scythe_enhanced", false))
@@ -176,7 +176,7 @@ func use_sword(attacker: Node3D) -> void:
 
 
 func stun_without_change(target: Node3D) -> void:
-	if _game._is_effect_active(target, "invincible_until"):
+	if _game._status_system.is_effect_active(target, "invincible_until"):
 		return
 	target.stun(_game.STUN_SECONDS)
 	_game._change_killers.erase(target)

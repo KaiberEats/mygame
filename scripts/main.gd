@@ -1,8 +1,8 @@
 extends Node3D
 
-## 試合(Match.tscn)のエントリ / Composition Root（旧 main.gd）。
-## ここでは各 System/コンポーネントを構築・結線し、_process で tick を発火するだけ。
-## ゲームのルール・状態・表示は持たず、systems/ · abilities/ · entities/components · net/ · ui/ が担う。
+## 試合(Match.tscn)のエントリ / Composition Root。
+## 各 System/コンポーネントを構築・結線し、_process で tick を発火する。
+## ネットの @rpc 入口(NodePath一致のため)を持つ。ルール/状態/表示は各層が担う。
 
 const HAND_SIZE := 8
 const KILL_DISTANCE := 5.0
@@ -49,6 +49,7 @@ var _net: NetSync = null
 var _flow: GameFlow = null
 var _hud: HudPresenter = null
 var _participants_mgr: Participants = null
+var _status_system: StatusSystem = null
 var _time_left := 600.0
 var _game_ending := false
 var _exchange_hold_time := 0.0
@@ -90,6 +91,10 @@ func _ready() -> void:
 	_flow.name = "GameFlow"
 	add_child(_flow)
 	_flow.setup(self)
+	_status_system = StatusSystem.new()
+	_status_system.name = "StatusSystem"
+	add_child(_status_system)
+	_status_system.setup(self)
 	_hud = HudPresenter.new(self, game_hud)
 	_participants_mgr = Participants.new()
 	_participants_mgr.setup(self)
@@ -155,8 +160,8 @@ func _process(delta: float) -> void:
 		return
 	_update_items(delta)
 	_respawn_out_of_bounds_participants()
-	_update_post_stun_buffs()
-	_update_effects()
+	_status_system.update_post_stun_buffs()
+	_status_system.update_effects()
 	_update_automatic_kills()
 	_update_computer_pair_actions(delta)
 	_update_computer_items()
@@ -289,19 +294,19 @@ func _find_change_target(attacker: Node3D) -> Node3D:
 	if attacker.is_stunned() or attacker.hand.is_empty():
 		return null
 
-	if _has_free_change(attacker):
+	if _status_system.has_free_change(attacker):
 		return _find_aimed_target(attacker, false)
 	return _find_aimed_target(attacker, true)
 
 
 func _find_scythe_target(attacker: Node3D) -> Node3D:
-	if not _has_ready_scythe(attacker) or attacker.is_stunned() or _get_kill_cooldown_left(attacker) > 0.0:
+	if not _status_system.has_ready_scythe(attacker) or attacker.is_stunned() or _get_kill_cooldown_left(attacker) > 0.0:
 		return null
 	return _find_aimed_target(attacker, false)
 
 
 func _find_coin_change_target(attacker: Node3D) -> Node3D:
-	if not _has_ready_coin(attacker) or attacker.is_stunned() or attacker.hand.is_empty():
+	if not _status_system.has_ready_coin(attacker) or attacker.is_stunned() or attacker.hand.is_empty():
 		return null
 	return _find_aimed_target(attacker, false)
 
@@ -346,7 +351,7 @@ func _set_hand_editor_open(is_open: bool) -> void:
 func _request_use_button_action() -> void:
 	var scythe_target := _find_scythe_target(player)
 	var player_effects: Dictionary = _status(player).data
-	if _has_ready_scythe(player) and (scythe_target != null or bool(player_effects.get("scythe_enhanced", false))):
+	if _status_system.has_ready_scythe(player) and (scythe_target != null or bool(player_effects.get("scythe_enhanced", false))):
 		var target_name := ""
 		if scythe_target != null:
 			target_name = scythe_target.name
@@ -442,166 +447,8 @@ func _refill_hand(participant: Node3D) -> void:
 	participant.set_hand(updated_hand, true)
 
 
-func _update_effects() -> void:
-	var now: float = _now()
-	for participant in _participants:
-		var effects: Dictionary = _status(participant).data
-		if float(effects.get("invincible_until", 0.0)) > 0.0 and now >= float(effects["invincible_until"]):
-			effects.erase("invincible_until")
-			participant.set_gold_outline(false)
-		if float(effects.get("invisible_until", 0.0)) > 0.0 and now >= float(effects["invisible_until"]):
-			effects.erase("invisible_until")
-			participant.set_invisible(false)
-		if float(effects.get("free_change_until", 0.0)) > 0.0 and now >= float(effects["free_change_until"]):
-			effects.erase("free_change_until")
-			effects.erase("free_change_duration")
-			effects["free_change_count"] = 0
-			_refresh_speed_multiplier(participant)
-		if float(effects.get("coin_until", 0.0)) > 0.0 and now >= float(effects["coin_until"]):
-			effects.erase("coin_until")
-			effects.erase("coin_duration")
-			effects["coin_count"] = 0
-			_refresh_speed_multiplier(participant)
-		if float(effects.get("recovery_speed_until", 0.0)) > 0.0 and now >= float(effects["recovery_speed_until"]):
-			effects.erase("recovery_speed_until")
-			_refresh_speed_multiplier(participant)
-		if float(effects.get("extra_kill_until", 0.0)) > 0.0 and now >= float(effects["extra_kill_until"]):
-			effects.erase("extra_kill_until")
-			effects["extra_kill_available"] = false
-			if participant.has_method("set_can_kill_without_joker"):
-				participant.set_can_kill_without_joker(false)
-		if float(effects.get("scythe_until", 0.0)) > 0.0 and now >= float(effects["scythe_until"]):
-			effects.erase("scythe_until")
-			effects.erase("scythe_enhanced")
-		if float(effects.get("counter_until", 0.0)) > 0.0 and now >= float(effects["counter_until"]):
-			effects.erase("counter_until")
-			effects.erase("counter_duration")
-		if float(effects.get("automatic_kill_until", 0.0)) > 0.0 and now >= float(effects["automatic_kill_until"]):
-			effects.erase("automatic_kill_until")
-			effects.erase("automatic_kill_targets")
-		if float(effects.get("auto_cleanse_until", 0.0)) > 0.0:
-			if now >= float(effects["auto_cleanse_until"]):
-				effects.erase("auto_cleanse_until")
-				effects.erase("auto_cleanse_at")
-			elif _has_negative_status(participant):
-				if not effects.has("auto_cleanse_at"):
-					effects["auto_cleanse_at"] = now + 3.0
-				elif now >= float(effects["auto_cleanse_at"]):
-					_clear_negative_statuses(participant)
-					effects.erase("auto_cleanse_at")
-			else:
-				effects.erase("auto_cleanse_at")
-
-	for viewer in _participants:
-		var cv: Dictionary = _vision(viewer).card_view
-		if not cv.is_empty() and now >= float(cv.get("until", 0.0)):
-			_vision(viewer).card_view = {}
-		var mr: Dictionary = _vision(viewer).map_reveal
-		if not mr.is_empty() and now >= float(mr.get("until", 0.0)):
-			_vision(viewer).map_reveal = {}
-	_sync_player_item_slot()
-
-
-func _is_location_revealed(target: Node3D) -> bool:
-	for viewer in _participants:
-		var positions: Dictionary = _vision(viewer).map_reveal.get("positions", {})
-		if positions.has(target):
-			return true
-	return false
-
-
-func _is_hand_being_viewed(target: Node3D) -> bool:
-	for viewer in _participants:
-		var view_data: Dictionary = _vision(viewer).card_view
-		if view_data.get("target") == target:
-			return true
-		if view_data.has("targets") and target in view_data["targets"]:
-			return true
-	return false
-
-
-func _has_extra_kill(participant: Node3D) -> bool:
-	var effects: Dictionary = _status(participant).data
-	return bool(effects.get("extra_kill_available", false)) and _is_effect_active(participant, "extra_kill_until")
-
-
-func _has_free_change(participant: Node3D) -> bool:
-	var effects: Dictionary = _status(participant).data
-	return int(effects.get("free_change_count", 0)) > 0 and _is_effect_active(participant, "free_change_until")
-
-
-func _has_ready_scythe(participant: Node3D) -> bool:
-	var effects: Dictionary = _status(participant).data
-	return float(effects.get("scythe_until", 0.0)) > _now()
-
-
-func _has_ready_coin(participant: Node3D) -> bool:
-	var effects: Dictionary = _status(participant).data
-	return int(effects.get("coin_count", 0)) > 0 and float(effects.get("coin_until", 0.0)) > _now()
-
-
-func _is_effect_active(participant: Node3D, key: String) -> bool:
-	return float(_status(participant).data.get(key, 0.0)) > _now()
-
-
-func _update_post_stun_buffs() -> void:
-	var now := _now()
-	for participant in _participants:
-		var is_stunned_now: bool = participant.is_stunned()
-		if bool(_was_stunned.get(participant, false)) and not is_stunned_now:
-			var effects: Dictionary = _status(participant).data
-			effects["invincible_until"] = maxf(
-				float(effects.get("invincible_until", 0.0)),
-				now + POST_STUN_BUFF_SECONDS
-			)
-			effects["recovery_speed_until"] = maxf(
-				float(effects.get("recovery_speed_until", 0.0)),
-				now + POST_STUN_BUFF_SECONDS
-			)
-			participant.set_gold_outline(true)
-			_refresh_speed_multiplier(participant)
-		_was_stunned[participant] = is_stunned_now
-
-
 func _refresh_speed_multiplier(participant: Node3D) -> void:
-	var has_speed_boost := (
-		_is_effect_active(participant, "free_change_until")
-		or _is_effect_active(participant, "coin_until")
-		or _is_effect_active(participant, "recovery_speed_until")
-	)
-	participant.set_speed_multiplier(1.1 if has_speed_boost else 1.0)
-
-
-func _clear_negative_statuses(participant: Node3D) -> void:
-	participant.clear_stun()
-	for viewer in _participants:
-		var view_data: Dictionary = _vision(viewer).card_view
-		if view_data.get("target") == participant:
-			_vision(viewer).card_view = {}
-		elif view_data.has("targets"):
-			var targets: Array = view_data["targets"]
-			targets.erase(participant)
-			if targets.is_empty():
-				_vision(viewer).card_view = {}
-	for viewer in _participants:
-		var positions: Dictionary = _vision(viewer).map_reveal.get("positions", {})
-		positions.erase(participant)
-
-
-func _has_negative_status(participant: Node3D) -> bool:
-	if participant.is_stunned():
-		return true
-	for viewer in _participants:
-		var view_data: Dictionary = _vision(viewer).card_view
-		if view_data.get("target") == participant:
-			return true
-		if view_data.has("targets") and participant in view_data["targets"]:
-			return true
-	for viewer in _participants:
-		var positions: Dictionary = _vision(viewer).map_reveal.get("positions", {})
-		if positions.has(participant):
-			return true
-	return false
+	_status_system.refresh_speed_multiplier(participant)
 
 
 func _find_nearest_participant(participant: Node3D) -> Node3D:
@@ -652,7 +499,7 @@ func _update_computer_items() -> void:
 
 func _try_computer_free_changes() -> void:
 	for participant in _participants:
-		if not _is_computer(participant) or participant.is_stunned() or not _has_free_change(participant):
+		if not _is_computer(participant) or participant.is_stunned() or not _status_system.has_free_change(participant):
 			continue
 		var target := _find_nearest_participant(participant)
 		if target != null and participant.global_position.distance_to(target.global_position) <= KILL_DISTANCE:
