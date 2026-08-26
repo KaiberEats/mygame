@@ -20,10 +20,10 @@ const COMPUTER_PAIR_ACTION_MIN_SECONDS := 2.0
 const COMPUTER_PAIR_ACTION_MAX_SECONDS := 5.0
 const COMPUTER_PAIR_ACTION_CHANCE := 0.35
 const NETWORK_SNAPSHOT_INTERVAL := 0.1
-const HOMING_MISSILE_SCENE := preload("res://scenes/HomingMissile.tscn")
-const COMPUTER_SCENE := preload("res://scenes/Computer.tscn")
-const PLAYER_SCENE := preload("res://scenes/Player.tscn")
-const TUTORIAL_SCENE := preload("res://scenes/Tutorial.tscn")
+const HOMING_MISSILE_SCENE := preload("res://scenes/entities/HomingMissile.tscn")
+const COMPUTER_SCENE := preload("res://scenes/entities/Computer.tscn")
+const PLAYER_SCENE := preload("res://scenes/entities/Player.tscn")
+const TUTORIAL_SCENE := preload("res://scenes/ui/Tutorial.tscn")
 
 @export var minimap_world_half_extent := 20.0
 

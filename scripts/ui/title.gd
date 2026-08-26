@@ -53,7 +53,7 @@ func _ready() -> void:
 	_tutorial_button.add_theme_font_size_override("font_size", 28)
 	_tutorial_button.pressed.connect(func() -> void:
 		GameConfig.tutorial_return_scene = "res://scenes/Title.tscn"
-		get_tree().change_scene_to_file("res://scenes/Tutorial.tscn")
+		get_tree().change_scene_to_file("res://scenes/ui/Tutorial.tscn")
 	)
 	_main_menu.add_child(_tutorial_button)
 	_build_settings_button()
@@ -174,7 +174,7 @@ func _apply_responsive_layout() -> void:
 
 func _start_single_player() -> void:
 	NetworkManager.close()
-	get_tree().change_scene_to_file("res://scenes/WaitingRoom.tscn")
+	get_tree().change_scene_to_file("res://scenes/flow/WaitingRoom.tscn")
 
 
 func _build_mode_menu() -> void:
@@ -228,7 +228,7 @@ func _build_mode_menu() -> void:
 	_host_button.custom_minimum_size = Vector2(300, 56)
 	_host_button.pressed.connect(func() -> void:
 		if NetworkManager.host(int(_port_spin.value)) == OK:
-			get_tree().change_scene_to_file("res://scenes/WaitingRoom.tscn")
+			get_tree().change_scene_to_file("res://scenes/flow/WaitingRoom.tscn")
 	)
 	_mode_menu.add_child(_host_button)
 	_address_edit = LineEdit.new()
@@ -528,7 +528,7 @@ func _build_settings_button() -> void:
 
 
 func _open_settings() -> void:
-	var settings := preload("res://scenes/Settings.tscn").instantiate()
+	var settings := preload("res://scenes/ui/Settings.tscn").instantiate()
 	add_child(settings)
 	settings.back_requested.connect(settings.queue_free)
 

@@ -56,14 +56,14 @@ func start_game() -> void:
 	if is_online and multiplayer.is_server():
 		_load_game.rpc(GameConfig.computer_count, GameConfig.deck_size, GameConfig.time_limit_minutes)
 	else:
-		get_tree().change_scene_to_file("res://scenes/Match.tscn")
+		get_tree().change_scene_to_file("res://scenes/match/Match.tscn")
 
 
 func return_to_waiting_room() -> void:
 	if not is_online:
-		get_tree().change_scene_to_file("res://scenes/WaitingRoom.tscn")
+		get_tree().change_scene_to_file("res://scenes/flow/WaitingRoom.tscn")
 	elif multiplayer.is_server():
-		_load_scene.rpc("res://scenes/WaitingRoom.tscn")
+		_load_scene.rpc("res://scenes/flow/WaitingRoom.tscn")
 	else:
 		_request_return_to_waiting_room.rpc_id(1)
 
@@ -105,7 +105,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 func _on_connected_to_server() -> void:
 	_register_player.rpc_id(1, GameConfig.player_name, GameConfig.player_color_name)
-	get_tree().change_scene_to_file("res://scenes/WaitingRoom.tscn")
+	get_tree().change_scene_to_file("res://scenes/flow/WaitingRoom.tscn")
 
 
 func _on_connection_failed() -> void:
@@ -142,7 +142,7 @@ func _load_scene(scene_path: String) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _request_return_to_waiting_room() -> void:
 	if multiplayer.is_server():
-		_load_scene.rpc("res://scenes/WaitingRoom.tscn")
+		_load_scene.rpc("res://scenes/flow/WaitingRoom.tscn")
 
 
 @rpc("authority", "call_local", "reliable")
@@ -151,4 +151,4 @@ func _load_game(computer_count: int, deck_size: int, time_limit_minutes: int) ->
 	GameConfig.deck_size = deck_size
 	GameConfig.time_limit_minutes = time_limit_minutes
 	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/Match.tscn")
+	get_tree().change_scene_to_file("res://scenes/match/Match.tscn")

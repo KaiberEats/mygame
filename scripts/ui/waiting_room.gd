@@ -1,6 +1,6 @@
 ﻿extends Node3D
 
-const PLAYER_SCENE := preload("res://scenes/Player.tscn")
+const PLAYER_SCENE := preload("res://scenes/entities/Player.tscn")
 
 var _settings_layer: CanvasLayer
 var _computer_spin: SpinBox
@@ -179,7 +179,7 @@ func _resume_waiting() -> void:
 func _show_tutorial() -> void:
 	get_tree().paused = false
 	GameConfig.tutorial_return_scene = scene_file_path
-	get_tree().change_scene_to_file("res://scenes/Tutorial.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/Tutorial.tscn")
 
 
 func _reload_language() -> void:

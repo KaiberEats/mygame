@@ -3,7 +3,7 @@ extends CanvasLayer
 signal hand_reordered(cards: Array[Dictionary])
 signal debug_return_requested
 
-const CARD_VIEW_SCENE := preload("res://scenes/CardView.tscn")
+const CARD_VIEW_SCENE := preload("res://scenes/ui/CardView.tscn")
 const ITEM_SLOT_SCRIPT := preload("res://scripts/ui/item_slot.gd")
 const EDGE_STATUS_EFFECT_SCRIPT := preload("res://scripts/ui/effects/edge_status_effect.gd")
 

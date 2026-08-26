@@ -3,8 +3,8 @@ extends Control
 
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	$Center/VBox/ClassicButton.pressed.connect(_start_map.bind("res://scenes/WaitingRoom.tscn"))
-	$Center/VBox/MansionButton.pressed.connect(_start_map.bind("res://scenes/Match.tscn"))
+	$Center/VBox/ClassicButton.pressed.connect(_start_map.bind("res://scenes/flow/WaitingRoom.tscn"))
+	$Center/VBox/MansionButton.pressed.connect(_start_map.bind("res://scenes/match/Match.tscn"))
 	$Center/VBox/BackButton.pressed.connect(_start_map.bind("res://scenes/Title.tscn"))
 
 

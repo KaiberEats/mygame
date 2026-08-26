@@ -1,12 +1,12 @@
 [gd_scene load_steps=27 format=3]
 
-[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="1_player"]
-[ext_resource type="PackedScene" path="res://scenes/PauseMenu.tscn" id="2_pause_menu"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Player.tscn" id="1_player"]
+[ext_resource type="PackedScene" path="res://scenes/ui/PauseMenu.tscn" id="2_pause_menu"]
 [ext_resource type="Script" path="res://scripts/ui/waiting_room.gd" id="3_main"]
-[ext_resource type="PackedScene" path="res://scenes/Deck.tscn" id="4_deck"]
-[ext_resource type="PackedScene" path="res://scenes/GameHud.tscn" id="5_game_hud"]
-[ext_resource type="PackedScene" path="res://scenes/Computer.tscn" id="6_computer"]
-[ext_resource type="PackedScene" path="res://scenes/Settings.tscn" id="7_settings"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Deck.tscn" id="4_deck"]
+[ext_resource type="PackedScene" path="res://scenes/ui/GameHud.tscn" id="5_game_hud"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Computer.tscn" id="6_computer"]
+[ext_resource type="PackedScene" path="res://scenes/ui/Settings.tscn" id="7_settings"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_brown"]
 albedo_color = Color(0.45, 0.24, 0.08, 1)
