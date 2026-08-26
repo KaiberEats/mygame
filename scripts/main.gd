@@ -50,6 +50,7 @@ var _flow: GameFlow = null
 var _hud: HudPresenter = null
 var _participants_mgr: Participants = null
 var _status_system: StatusSystem = null
+var _controls: PlayerController = null
 var _time_left := 600.0
 var _game_ending := false
 var _exchange_hold_time := 0.0
@@ -98,14 +99,18 @@ func _ready() -> void:
 	_hud = HudPresenter.new(self, game_hud)
 	_participants_mgr = Participants.new()
 	_participants_mgr.setup(self)
+	_controls = PlayerController.new()
+	_controls.name = "PlayerController"
+	add_child(_controls)
+	_controls.setup(self)
 	pause_menu.hide()
 	settings_menu.hide()
-	pause_menu.resume_requested.connect(_resume_game)
-	pause_menu.settings_requested.connect(_show_settings_menu)
-	pause_menu.tutorial_requested.connect(_show_tutorial)
-	settings_menu.back_requested.connect(_show_pause_menu)
+	pause_menu.resume_requested.connect(_controls.resume_game)
+	pause_menu.settings_requested.connect(_controls.show_settings_menu)
+	pause_menu.tutorial_requested.connect(_controls.show_tutorial)
+	settings_menu.back_requested.connect(_controls.show_pause_menu)
 	game_hud.hand_reordered.connect(_on_hand_reordered)
-	game_hud.debug_return_requested.connect(_force_return_to_waiting_room)
+	game_hud.debug_return_requested.connect(_controls.force_return_to_waiting_room)
 	if not NetworkManager.peers_changed.is_connected(_refresh_network_player_profiles):
 		NetworkManager.peers_changed.connect(_refresh_network_player_profiles)
 	_configure_computers()
@@ -143,7 +148,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if get_tree().paused and _should_pause_game():
+	if get_tree().paused and _controls.should_pause_game():
 		return
 	if _game_ending:
 		return
@@ -174,109 +179,6 @@ func _process(delta: float) -> void:
 		_receive_game_state.rpc(_build_game_state())
 	if _time_left <= 0.0 or _has_empty_hand():
 		_finish_game()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if _game_ending:
-		return
-
-	if event.is_action_pressed("ui_cancel"):
-		if pause_menu.visible or settings_menu.visible:
-			_resume_game()
-		else:
-			_show_pause_menu()
-		get_viewport().set_input_as_handled()
-		return
-
-	if get_tree().paused or _is_local_ui_blocking_gameplay():
-		return
-
-	if event.is_action_pressed("hand_editor"):
-		_set_hand_editor_open(not game_hud.is_hand_editor_open())
-		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("use_item"):
-		_request_use_button_action()
-		get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed and not event.echo:
-		var pair_slot := _get_pair_slot_from_event(event)
-		if pair_slot >= 0:
-			_request_local_action("pair", pair_slot)
-			get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		if not game_hud.is_hand_editor_open() and _player_kill_target != null:
-			_request_local_action("kill", 0, _player_kill_target.name)
-			get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		if not game_hud.is_hand_editor_open() and _player_change_target != null:
-			_request_local_action("change", 0, _player_change_target.name)
-			get_viewport().set_input_as_handled()
-
-
-func _show_pause_menu() -> void:
-	game_hud.close_hand_editor()
-	get_tree().paused = _should_pause_game()
-	_set_local_player_input_enabled(false)
-	settings_menu.hide()
-	pause_menu.show()
-	game_hud.show()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-
-func _show_settings_menu() -> void:
-	game_hud.close_hand_editor()
-	get_tree().paused = _should_pause_game()
-	_set_local_player_input_enabled(false)
-	pause_menu.hide()
-	settings_menu.show()
-	game_hud.hide()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-
-func _resume_game() -> void:
-	game_hud.close_hand_editor()
-	pause_menu.hide()
-	settings_menu.hide()
-	game_hud.show()
-	get_tree().paused = false
-	_set_local_player_input_enabled(true)
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-
-
-func _show_tutorial() -> void:
-	if _tutorial_overlay != null and is_instance_valid(_tutorial_overlay):
-		return
-	game_hud.close_hand_editor()
-	pause_menu.hide()
-	settings_menu.hide()
-	get_tree().paused = _should_pause_game()
-	_set_local_player_input_enabled(false)
-	_tutorial_overlay = TUTORIAL_SCENE.instantiate()
-	_tutorial_overlay.set_meta("overlay", true)
-	_tutorial_overlay.tree_exited.connect(func() -> void:
-		_tutorial_overlay = null
-		if not _game_ending and get_tree().current_scene == self:
-			_show_pause_menu()
-	)
-	game_hud.add_child(_tutorial_overlay)
-
-
-func _force_return_to_waiting_room() -> void:
-	get_tree().paused = false
-	Engine.time_scale = 1.0
-	NetworkManager.return_to_waiting_room()
-
-
-func _should_pause_game() -> bool:
-	return not NetworkManager.is_online
-
-
-func _is_local_ui_blocking_gameplay() -> bool:
-	return pause_menu.visible or settings_menu.visible or (_tutorial_overlay != null and is_instance_valid(_tutorial_overlay))
-
-
-func _set_local_player_input_enabled(is_enabled: bool) -> void:
-	if player != null and player.has_method("set_input_enabled"):
-		player.set_input_enabled(is_enabled)
 
 
 func _find_kill_target(attacker: Node3D) -> Node3D:
@@ -337,31 +239,6 @@ func _perform_change(attacker: Node3D, target: Node3D, forced_free_change: bool 
 
 func _clear_expired_change_rights() -> void:
 	_combat.clear_expired_change_rights()
-
-
-func _set_hand_editor_open(is_open: bool) -> void:
-	if is_open:
-		game_hud.open_hand_editor(player.hand)
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	else:
-		game_hud.close_hand_editor()
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-
-
-func _request_use_button_action() -> void:
-	var scythe_target := _find_scythe_target(player)
-	var player_effects: Dictionary = _status(player).data
-	if _status_system.has_ready_scythe(player) and (scythe_target != null or bool(player_effects.get("scythe_enhanced", false))):
-		var target_name := ""
-		if scythe_target != null:
-			target_name = scythe_target.name
-		_request_local_action("scythe", 0, target_name)
-		return
-	var coin_target := _find_coin_change_target(player)
-	if coin_target != null:
-		_request_local_action("coin", 0, coin_target.name)
-		return
-	_request_local_action("item")
 
 
 func _on_hand_reordered(cards: Array[Dictionary]) -> void:
@@ -739,11 +616,8 @@ func _exchange_stations() -> Array[StaticBody3D]:
 	return _exchange.stations()
 
 
-func _request_local_action(action: String, value: int = 0, target_name: String = "") -> void:
-	if _is_game_authority():
-		_execute_player_action(player, action, value, target_name)
-	else:
-		_request_action.rpc_id(1, action, value, target_name)
+func request_action_remote(action: String, value: int = 0, target_name: String = "") -> void:
+	_request_action.rpc_id(1, action, value, target_name)
 
 
 func _execute_player_action(actor: Node3D, action: String, value: int, target_name: String) -> void:
