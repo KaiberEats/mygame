@@ -39,6 +39,8 @@ var _exchange: ExchangeSystem = null
 var _item_system: ItemSystem = null
 var _combat: CombatSystem = null
 var _ability: AbilitySystem = null
+var _codec := GameStateCodec.new()
+var _net: NetSync = null
 var _time_left := 600.0
 var _game_ending := false
 var _exchange_hold_time := 0.0
@@ -56,6 +58,26 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().paused = false
 	randomize()
+	_exchange = ExchangeSystem.new()
+	_exchange.name = "ExchangeSystem"
+	add_child(_exchange)
+	_exchange.setup(self)
+	_item_system = ItemSystem.new()
+	_item_system.name = "ItemSystem"
+	add_child(_item_system)
+	_item_system.setup(self)
+	_combat = CombatSystem.new()
+	_combat.name = "CombatSystem"
+	add_child(_combat)
+	_combat.setup(self)
+	_ability = AbilitySystem.new()
+	_ability.name = "AbilitySystem"
+	add_child(_ability)
+	_ability.setup(self)
+	_net = NetSync.new()
+	_net.name = "NetSync"
+	add_child(_net)
+	_net.setup(self)
 	pause_menu.hide()
 	settings_menu.hide()
 	pause_menu.resume_requested.connect(_resume_game)
@@ -78,22 +100,6 @@ func _ready() -> void:
 	for participant in _participants:
 		_attach_components(participant)
 		_was_stunned[participant] = participant.is_stunned()
-	_exchange = ExchangeSystem.new()
-	_exchange.name = "ExchangeSystem"
-	add_child(_exchange)
-	_exchange.setup(self)
-	_item_system = ItemSystem.new()
-	_item_system.name = "ItemSystem"
-	add_child(_item_system)
-	_item_system.setup(self)
-	_combat = CombatSystem.new()
-	_combat.name = "CombatSystem"
-	add_child(_combat)
-	_combat.setup(self)
-	_ability = AbilitySystem.new()
-	_ability.name = "AbilitySystem"
-	add_child(_ability)
-	_ability.setup(self)
 	_setup_exchange_stations()
 	if _is_game_authority():
 		deck.reset_and_shuffle(GameConfig.deck_size)
@@ -1022,7 +1028,7 @@ func _participant_name(participant: Node3D) -> String:
 
 
 func _is_game_authority() -> bool:
-	return not NetworkManager.is_online or multiplayer.is_server()
+	return _net.is_game_authority()
 
 
 func _is_computer(participant: Node3D) -> bool:
@@ -1037,15 +1043,11 @@ func _participant_by_name(participant_name: String) -> Node3D:
 
 
 func _participant_for_peer(peer_id: int) -> Node3D:
-	return _participant_by_name("Player" if peer_id == 1 else "NetworkPlayer_%d" % peer_id)
+	return _net.participant_for_peer(peer_id)
 
 
 func _peer_for_participant(participant: Node3D) -> int:
-	if participant.name == "Player":
-		return 1
-	if participant.name.begins_with("NetworkPlayer_"):
-		return int(participant.name.trim_prefix("NetworkPlayer_"))
-	return 0
+	return _net.peer_for_participant(participant)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -1101,76 +1103,23 @@ func _request_local_action(action: String, value: int = 0, target_name: String =
 
 
 func _execute_player_action(actor: Node3D, action: String, value: int, target_name: String) -> void:
-	match action:
-		"pair":
-			_try_use_pair(actor, value)
-		"item":
-			_use_item(actor)
-		"scythe":
-			var target := _participant_by_name(target_name)
-			if _can_server_scythe(actor, target):
-				_use_scythe(actor, target)
-		"coin":
-			var target := _participant_by_name(target_name)
-			if target != null and _can_server_coin_change(actor, target):
-				_perform_change(actor, target, true)
-		"kill":
-			var target := _participant_by_name(target_name)
-			if target != null and _can_server_kill(actor, target):
-				_perform_kill(actor, target)
-		"change":
-			var target := _participant_by_name(target_name)
-			if target != null and _can_server_change(actor, target):
-				_perform_change(actor, target)
+	_net.execute_player_action(actor, action, value, target_name)
 
 
 func _can_server_kill(actor: Node3D, target: Node3D) -> bool:
-	return (
-		actor != target
-		and actor.global_position.distance_to(target.global_position) <= KILL_DISTANCE + 0.5
-		and not actor.is_stunned()
-		and not target.is_stunned()
-		and _get_kill_cooldown_left(actor) <= 0.0
-		and actor.has_joker()
-	)
+	return _net.can_server_kill(actor, target)
 
 
 func _can_server_scythe(actor: Node3D, target: Node3D) -> bool:
-	if actor == null or actor.is_stunned() or not _has_ready_scythe(actor):
-		return false
-	var effects: Dictionary = _status(actor).data
-	if bool(effects.get("scythe_enhanced", false)):
-		return true
-	return (
-		target != null
-		and actor != target
-		and actor.global_position.distance_to(target.global_position) <= KILL_DISTANCE + 0.5
-		and not target.is_stunned()
-		and _get_kill_cooldown_left(actor) <= 0.0
-	)
+	return _net.can_server_scythe(actor, target)
 
 
 func _can_server_change(actor: Node3D, target: Node3D) -> bool:
-	return (
-		actor != target
-		and actor.global_position.distance_to(target.global_position) <= KILL_DISTANCE + 0.5
-		and not actor.is_stunned()
-		and not actor.hand.is_empty()
-		and not target.hand.is_empty()
-		and (_has_free_change(actor) or (_change_killers.get(target) == actor and target.is_stunned()))
-	)
+	return _net.can_server_change(actor, target)
 
 
 func _can_server_coin_change(actor: Node3D, target: Node3D) -> bool:
-	return (
-		actor != target
-		and actor.global_position.distance_to(target.global_position) <= KILL_DISTANCE + 0.5
-		and not actor.is_stunned()
-		and not target.is_stunned()
-		and not actor.hand.is_empty()
-		and not target.hand.is_empty()
-		and _has_ready_coin(actor)
-	)
+	return _net.can_server_coin_change(actor, target)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -1204,17 +1153,7 @@ func _request_reorder(cards: Array) -> void:
 
 
 func _same_cards(first: Array, second: Array) -> bool:
-	if first.size() != second.size():
-		return false
-	var first_signatures: Array[String] = []
-	var second_signatures: Array[String] = []
-	for card in first:
-		first_signatures.append("%s:%d" % [card.get("suit", ""), int(card.get("rank", 0))])
-	for card in second:
-		second_signatures.append("%s:%d" % [card.get("suit", ""), int(card.get("rank", 0))])
-	first_signatures.sort()
-	second_signatures.sort()
-	return first_signatures == second_signatures
+	return _codec.same_cards(first, second)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -1224,191 +1163,36 @@ func _request_full_state() -> void:
 
 
 func _build_game_state() -> Dictionary:
-	var participant_states: Dictionary = {}
-	var now := _now()
-	for participant in _participants:
-		var effect_state: Dictionary = {}
-		for key in [
-			"invincible_until", "invisible_until", "free_change_until", "extra_kill_until", "scythe_until", "coin_until",
-			"counter_until", "automatic_kill_until", "auto_cleanse_until", "recovery_speed_until"
-		]:
-			var remaining := maxf(float(_status(participant).data.get(key, 0.0)) - now, 0.0)
-			if remaining > 0.0:
-				effect_state[key] = remaining
-		for key in [
-			"free_change_count", "free_change_duration", "extra_kill_available",
-			"scythe_enhanced", "coin_count", "coin_duration",
-			"counter_duration", "barrier_charges", "enhance_next_ability"
-		]:
-			if _status(participant).data.has(key):
-				effect_state[key] = _status(participant).data[key]
-		participant_states[participant.name] = {
-			"transform": participant.global_transform,
-			"hand": participant.hand,
-			"stun": participant.get_stun_time_left(),
-			"pending_stun": 0.0,
-			"effects": effect_state,
-			"kill_cooldown": _get_kill_cooldown_left(participant),
-			"ability_cooldown": _get_ability_cooldown_left(participant),
-			"item": _network_item_for(participant),
-		}
-	var station_cards: Array = []
-	for station in _exchange_stations():
-		station_cards.append(_station_cards(station))
-	var change_rights: Dictionary = {}
-	for target in _change_killers:
-		if is_instance_valid(target) and is_instance_valid(_change_killers[target]):
-			change_rights[target.name] = _change_killers[target].name
-	return {
-		"participants": participant_states,
-		"deck_remaining": deck.remaining_count(),
-		"deck_total": deck.total_count(),
-		"time_left": _time_left,
-		"stations": station_cards,
-		"change_rights": change_rights,
-		"card_views": _build_card_view_state(now),
-		"map_reveals": _build_map_reveal_state(now),
-	}
+	return _codec.build_state(self)
 
 
 func _network_item_for(participant: Node3D) -> Dictionary:
-	if not _item(participant).has_item():
-		return {}
-	var item: Dictionary = _item(participant).data
-	return {
-		"name": item.get("name", ""),
-		"duration": item.get("duration", 0.0),
-		"time_left": item.get("time_left", 0.0),
-		"charges": item.get("charges", 1),
-	}
+	return _codec.network_item_for(self, participant)
 
 
 func _build_card_view_state(now: float) -> Dictionary:
-	var result: Dictionary = {}
-	for viewer in _participants:
-		var view: Dictionary = _vision(viewer).card_view
-		if view.is_empty():
-			continue
-		var data := {"remaining": maxf(float(view.get("until", 0.0)) - now, 0.0)}
-		if view.has("targets"):
-			var names: Array[String] = []
-			for target in view["targets"]:
-				if is_instance_valid(target):
-					names.append(target.name)
-			data["targets"] = names
-		elif is_instance_valid(view.get("target")):
-			data["target"] = view["target"].name
-		result[viewer.name] = data
-	return result
+	return _codec.build_card_view_state(self, now)
 
 
 func _build_map_reveal_state(now: float) -> Dictionary:
-	var result: Dictionary = {}
-	for viewer in _participants:
-		var reveal: Dictionary = _vision(viewer).map_reveal
-		if reveal.is_empty():
-			continue
-		result[viewer.name] = {
-			"remaining": maxf(float(reveal.get("until", 0.0)) - now, 0.0),
-			"positions": reveal.get("positions", {}).values(),
-		}
-	return result
+	return _codec.build_map_reveal_state(self, now)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _receive_game_state(state: Dictionary) -> void:
-	var now := _now()
-	_time_left = float(state.get("time_left", _time_left))
-	game_hud.set_deck_count(int(state.get("deck_remaining", 0)), int(state.get("deck_total", 0)))
-	var participant_states: Dictionary = state.get("participants", {})
-	for participant_name in participant_states:
-		var participant := _participant_by_name(String(participant_name))
-		if participant == null:
-			continue
-		var data: Dictionary = participant_states[participant_name]
-		if participant != player:
-			participant.global_transform = data.get("transform", participant.global_transform)
-		participant.set_hand(data.get("hand", []))
-		participant.set_stun_state(float(data.get("stun", 0.0)), float(data.get("pending_stun", 0.0)))
-		_cooldown(participant).kill_until = now + float(data.get("kill_cooldown", 0.0))
-		_cooldown(participant).ability_until = now + float(data.get("ability_cooldown", 0.0))
-		_apply_effect_state(participant, data.get("effects", {}), now)
-		var item: Dictionary = data.get("item", {})
-		if item.is_empty():
-			_item(participant).clear()
-		else:
-			_item(participant).data = item
-	var stations := _exchange_stations()
-	var station_cards: Array = state.get("stations", [])
-	for index in mini(stations.size(), station_cards.size()):
-		_set_station_cards(stations[index], station_cards[index])
-	_change_killers.clear()
-	for target_name in state.get("change_rights", {}):
-		var target := _participant_by_name(String(target_name))
-		var attacker := _participant_by_name(String(state["change_rights"][target_name]))
-		if target != null and attacker != null:
-			_change_killers[target] = attacker
-	_apply_card_view_state(state.get("card_views", {}), now)
-	_apply_map_reveal_state(state.get("map_reveals", {}), now)
-	_sync_player_item_slot()
+	_codec.apply_state(self, state)
 
 
 func _apply_effect_state(participant: Node3D, state: Dictionary, now: float) -> void:
-	var effects: Dictionary = {}
-	for key in state:
-		if String(key).ends_with("_until"):
-			effects[key] = now + float(state[key])
-		else:
-			effects[key] = state[key]
-	_status(participant).data = effects
-	participant.set_gold_outline(effects.has("invincible_until"))
-	participant.set_invisible(effects.has("invisible_until"))
-	_set_barrier_visual(participant, int(effects.get("barrier_charges", 0)) > 0)
-	_refresh_speed_multiplier(participant)
-	if participant.has_method("set_can_kill_without_joker"):
-		participant.set_can_kill_without_joker(bool(effects.get("extra_kill_available", false)))
+	_codec.apply_effect_state(self, participant, state, now)
 
 
 func _apply_card_view_state(state: Dictionary, now: float) -> void:
-	for participant in _participants:
-		_vision(participant).card_view = {}
-	for viewer_name in state:
-		var viewer := _participant_by_name(String(viewer_name))
-		if viewer == null:
-			continue
-		var source: Dictionary = state[viewer_name]
-		var view := {"until": now + float(source.get("remaining", 0.0))}
-		if source.has("targets"):
-			var targets: Array[Node3D] = []
-			for target_name in source["targets"]:
-				var target := _participant_by_name(String(target_name))
-				if target != null:
-					targets.append(target)
-			view["targets"] = targets
-		elif source.has("target"):
-			var target := _participant_by_name(String(source["target"]))
-			if target != null:
-				view["target"] = target
-		_vision(viewer).card_view = view
+	_codec.apply_card_view_state(self, state, now)
 
 
 func _apply_map_reveal_state(state: Dictionary, now: float) -> void:
-	for participant in _participants:
-		_vision(participant).map_reveal = {}
-	for viewer_name in state:
-		var viewer := _participant_by_name(String(viewer_name))
-		if viewer == null:
-			continue
-		var source: Dictionary = state[viewer_name]
-		var positions: Dictionary = {}
-		var index := 0
-		for revealed_position in source.get("positions", []):
-			positions[index] = revealed_position
-			index += 1
-		_vision(viewer).map_reveal = {
-			"until": now + float(source.get("remaining", 0.0)),
-			"positions": positions,
-		}
+	_codec.apply_map_reveal_state(self, state, now)
 
 
 func _attach_components(participant: Node) -> void:
