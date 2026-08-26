@@ -190,3 +190,30 @@ func set_barrier_visual(participant: Node3D, is_active: bool) -> void:
 func show_kill_notifications(attacker: Node3D, target: Node3D) -> void:
 	_game.notify_participant(target, GameConfig.text("killed"))
 	_game.notify_participant(attacker, GameConfig.text("kill_notice") % _game._participant_name(target))
+
+
+# --- 行動可否ゲート付きの照準（純幾何は TargetingService、ここは可否条件を足す）----------
+func find_kill_target(attacker: Node3D) -> Node3D:
+	if not attacker.has_joker() or attacker.is_stunned() or _game._get_kill_cooldown_left(attacker) > 0.0:
+		return null
+	return _game._find_aimed_target(attacker, false)
+
+
+func find_change_target(attacker: Node3D) -> Node3D:
+	if attacker.is_stunned() or attacker.hand.is_empty():
+		return null
+	if _game._status_system.has_free_change(attacker):
+		return _game._find_aimed_target(attacker, false)
+	return _game._find_aimed_target(attacker, true)
+
+
+func find_scythe_target(attacker: Node3D) -> Node3D:
+	if not _game._status_system.has_ready_scythe(attacker) or attacker.is_stunned() or _game._get_kill_cooldown_left(attacker) > 0.0:
+		return null
+	return _game._find_aimed_target(attacker, false)
+
+
+func find_coin_change_target(attacker: Node3D) -> Node3D:
+	if not _game._status_system.has_ready_coin(attacker) or attacker.is_stunned() or attacker.hand.is_empty():
+		return null
+	return _game._find_aimed_target(attacker, false)

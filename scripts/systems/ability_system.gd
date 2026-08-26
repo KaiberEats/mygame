@@ -2,7 +2,7 @@ class_name AbilitySystem
 extends Node
 
 ## ペア（同ランク2枚）を使った能力発動。rank→Ability の表で振り分ける。
-## 能力の中身は abilities/ability_NN.gd（Strategy）。テキストは _game._get_ability_message。
+## 能力の中身は abilities/ability_NN.gd（Strategy）。テキストは get_ability_message。
 
 var _game: Node
 var _abilities: Dictionary = {}
@@ -69,7 +69,7 @@ func activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
 		ctx.effects = effects
 		ability.apply(ctx)
 
-	var message := "%d  %s" % [ability_rank, _game._get_ability_message(ability_rank, is_enhanced)]
+	var message := "%d  %s" % [ability_rank, get_ability_message(ability_rank, is_enhanced)]
 	_game.notify_participant(participant, message)
 
 
@@ -122,3 +122,38 @@ func get_pair_slot_from_event(event: InputEvent) -> int:
 
 func show_ability_not_ready(participant: Node3D) -> void:
 	_game.notify_participant(participant, GameConfig.text("ability_not_ready"))
+
+
+func get_ability_message(rank: int, is_enhanced: bool) -> String:
+	if GameConfig.language == "ja":
+		var normal_ja := ["", "手札交換", "ミサイル", "5秒無敵", "鎌", "手札を見る15秒", "状態回復", "10秒透明", "コイン", "レイピア", "1枚コピー", "10秒マップ表示", "盾", "次を強化"]
+		var enhanced_ja := ["", "ペアドロー", "ミサイル2発", "10秒無敵", "オート鎌", "全手札を見る15秒", "自動状態回復", "20秒透明", "コイン2回", "レイピア6秒", "2枚コピー", "20秒マップ表示", "盾2回", "ソード"]
+		return enhanced_ja[rank] if is_enhanced else normal_ja[rank]
+	match rank:
+		1:
+			return "PAIR DRAW" if is_enhanced else "REDRAW"
+		2:
+			return "MISSILE x2" if is_enhanced else "MISSILE"
+		3:
+			return "INVINCIBLE 10s" if is_enhanced else "INVINCIBLE 5s"
+		4:
+			return "AUTO SCYTHE" if is_enhanced else "SCYTHE"
+		5:
+			return "VIEW ALL HANDS 15s" if is_enhanced else "VIEW HAND 15s"
+		6:
+			return "AUTO CLEANSE" if is_enhanced else "CLEANSE"
+		7:
+			return "INVISIBLE 20s" if is_enhanced else "INVISIBLE 10s"
+		8:
+			return "COIN x2" if is_enhanced else "COIN"
+		9:
+			return "RAPIER 6s" if is_enhanced else "RAPIER"
+		10:
+			return "COPY x2" if is_enhanced else "COPY"
+		11:
+			return "MAP REVEAL 20s" if is_enhanced else "MAP REVEAL 10s"
+		12:
+			return "SHIELD x2" if is_enhanced else "SHIELD"
+		13:
+			return "SWORD" if is_enhanced else "BOOST NEXT"
+	return "ABILITY"
