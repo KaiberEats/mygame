@@ -1,77 +1,109 @@
-# 全面改修 移行計画
+# PLAN — main.gd 品質改修
 
-`docs/ARCHITECTURE.md` の目標アーキテクチャへ、`scripts/main.gd`（約2000行）中心の現構造を移行する計画。
+仕様は [SPEC.md](../SPEC.md)。本書は実装計画（依存グラフ・縦スライス・受け入れ/検証・チェックポイント）。
+実装は**この計画のレビュー後**に着手する。コードは push せずローカル完結、フェーズ単位でコミット。
 
-## 前提・原則
+## 現状の結合面（grep 実測）
 
-- **振る舞いを変えない**。各タスクは移動と付け替えのみ。ゲーム仕様（ルール・数値・見た目）は変えない。
-- **小さく順番に**。1タスク＝1つの機能領域。各タスク後に検証する。
-- **Strangler 方式**。新しい置き場（コンポーネント / System / サービス）を先に用意し、`main` から中身を
-  移して委譲させ、最後に `main` を薄くする。途中の各段階でも常にゲームは動く。
-- **コミットはフェーズ単位**。各フェーズ完了時に1コミット、メッセージは簡潔に（例:「参加者の状態をコンポーネントに移行」
-  「照準ロジックを TargetingService に分離」）。可否は本人が決める（既定: フェーズ完了時に差分とメッセージ案を提示 → OK で
-  コミット）。1フェーズ＝ロールバック単位。
+各 System が `var _game: Node` を持ち、main 内部を `_game.X` で触っている（総計 ~340 箇所）。到達先の内訳:
 
-## 検証標準（毎タスク共通）
+- **参加者アクセス**: `player`(47) / `_participants`(30) / `_participant_by_name`(15) / `_is_computer`(3) / `_participant_name`(4) / `_participant_spawn_positions`(3) / `_find_aimed_target`(5)
+- **コンポーネント**: `_vision`(22) / `_status`(19) / `_item`(16) / `_cooldown`(5)
+- **他 System**: `_status_system`(20) / `_item_system`(10) / `_combat`(10) / `_ability`(2) / `_net`(6) / `_exchange`(4)
+- **表示/通知/ネット入口**: `game_hud`(29) / `notify_participant`(6) / `_show_change_preview_for_participant`(3) / `respawn_remote` / `broadcast_game_finished` / `_launch_missile` ほか
+- **状態**: `_change_killers`(15) / 交換ホールド系(hold_time/target/card_index/locked/exchange_card_index) / `_game_ending`(6) / `_time_left`(4) / `_player_*_target`(15) / `_tutorial_overlay`(9) / `_was_stunned`(2)
+- **定数/時刻**: `_now`(15) / `KILL_DISTANCE`(8) / `STUN_SECONDS`(4) / `EXCHANGE_CARD_COUNT`(4) / その他定数
+- **サービス**: `deck`(5) / `pause_menu`(6) / `settings_menu`(6)
 
-1. エディタ全体スキャン：`Godot --headless --editor --quit-after 250` で `ERROR:` / `SCRIPT ERROR` が無い。
-2. シーン起動：`Title` / 本編（現 `Mansion.tscn`）/ 待機室（現 `Main.tscn`）を headless 起動しエラー無し。
-3. 該当機能の手動確認（タスクごとに明記）。
-4. ネットに関わるタスクは 2インスタンスでの online 経路確認（該当タスクに明記）。
+## 解消アプローチ（結合を下向き依存に置き換える）
 
-## 依存グラフ（移行順の根拠）
+| 結合 | 置き換え先 |
+|---|---|
+| 定数 `KILL_DISTANCE` 等 | **GameConfig（autoload）へ集約**。System は `GameConfig.X` を直接参照（autoload は設定であり神コンテキストではない） |
+| `_now()` | **`util/clock.gd` の `Clock.now()`（static）** に集約 |
+| `_status/_cooldown/_item/_vision`, `_is_computer`, `_participant_name` | **`entities/participant.gd`（`class_name Participant extends CharacterBody3D`）基底**を新設。Player/Computer が継承し、型付きゲッター（`status()`/`cooldown()`/`item()`/`vision()`）と `is_computer()`/`display_name()` を提供。コンポーネントは基底の `_ready` で自己 attach（main の `_attach_components` を廃止） |
+| `player`/`_participants`/`by_name`/`nearest`/spawn | **Participants を参加者レジストリに**。`local_player` / `all` / `by_name()` / `nearest()` / spawn を所有。System は Participants を注入で受け取る |
+| `_time_left`/`_game_ending`/`network_snapshot_time_left` | **GameStateManager**（作成済み）を結線して所有 |
+| `_change_killers` | **CombatSystem** が所有 |
+| 交換ホールド系・交換カード index・ロック | **ExchangeSystem** が所有 |
+| `_was_stunned` | **StatusSystem** が所有 |
+| `_player_*_target`・`_tutorial_overlay` | **PlayerController** が所有 |
+| `game_hud`・`notify_*`・`@rpc` 入口 | @rpc は main に残す。System からの通知/ネット送信は **NetGateway（main が公開する狭い facade）を注入**。main 全体は渡さない |
+| 他 System 参照（combat/status/item/… 間） | `setup(...)` で**必要な System 参照だけ**を明示注入 |
+
+> 注: DI リファクタは横断的なので Phase 0 の共有基盤（Config/Clock/Participant/Participants/GameStateManager/NetGateway）が先に要る。
+> これらが揃ってから、各 System を1つずつ縦に移行（＝各 System が `_game` 無しで単体で成立する状態にして検証）する。
+
+## 依存グラフ（下ほど土台）
 
 ```
-足場(ディレクトリ)                     … 置き場を用意（最初）
-        │
-状態を持ち主へ（コンポーネント）        … Status / Cooldown / Item / Vision
-        │  ← System・ネット・表示 が状態を読むので最初に確定させる
-純サービス（TargetingService）          … 状態非依存、独立
-        │
-ルール System                          … Combat / Ability / Item / Exchange（コンポーネントを読む）
-        │
-ネット（Codec → NetSync）              … コンポーネント/System を読み書き（状態確定後）
-        │
-進行（GameFlow）＋ 表示仕上げ（Presenter意味API化）
-        │
-シーン骨格（Match/Map分離・器・改名）    … 影響が最大なので最後
-        │
-match.gd 薄化の確認
+GameConfig(定数)  Clock(now)  Participant(基底/component getters)
+        \            |            /
+         Participants(レジストリ)      GameStateManager(進行状態)
+                       \                 /
+                    NetGateway(main の @rpc facade)
+                       /   |   |   |   \
+   StatusSystem  CombatSystem  ExchangeSystem  ItemSystem  AbilitySystem
+              \        |            |            /            /
+               GameFlow   NetSync / GameStateCodec   HudPresenter
+                                   \
+                               PlayerController
 ```
 
-**縦切りの方針**: 「全コンポーネント→全System」の横並びではなく、状態は機能領域ごとに
-「コンポーネント新設 → `main`が委譲 → 該当HUDを `hud_presenter` の意味APIへ」まで1タスクで縦に通す。
-ただし状態は System・ネット・表示すべてが依存する土台なので、状態のコンポーネント化（フェーズ1）だけは
-先に置く。以降の System 抽出は各機能で縦に閉じる。
+## フェーズ（縦スライス）
 
-## フェーズとチェックポイント
+各フェーズ末に **§2 エディタスキャン + Match.tscn 起動（エラー0）**。コミット1つ。
 
-各フェーズ完了時にコミット（簡潔メッセージ）。レビュー関門は計2回。
+### Phase 0 — 共有基盤
+- 0a. 調整定数を GameConfig へ移し、参照を `GameConfig.X` に張り替え（main の `const` 群を削除）。
+- 0b. `util/clock.gd`（`Clock.now()`）新設、`_now()` を置換。
+- 0c. `entities/participant.gd` 基底新設。Player/Computer を `extends Participant` に。component getters・`is_computer()`・`display_name()` を移設、コンポーネント自己 attach。main の `_attach_components`/`_status`/`_cooldown`/`_item`/`_vision`/`_is_computer`/`_participant_name` を撤去。
+- 0d. Participants をレジストリ化（`local_player`/`all`/`by_name()`/`nearest()`/spawn 所有）。main の `_participants`/`_participant_by_name`/`_find_nearest_participant`/`_participant_spawn_positions` を撤去。
+- 0e. GameStateManager を結線（time_left/is_ending/network_snapshot_time_left 所有）。main と `_process` を張り替え。
+- 0f. NetGateway facade を定義（main の @rpc 入口を薄く公開）。まだ System は注入せず、main 内で利用のみ。
+- **チェックポイント C0**: スキャン + 起動。
 
-- **フェーズ0** 足場（ディレクトリ再編）
-- **フェーズ1** 状態を持ち主へ（Status / Cooldown / Item / Vision コンポーネント）
-- **フェーズ2** 純サービス（TargetingService）
-- **フェーズ3** ルール System（Combat / Ability+Strategy / Item / Exchange） → **★レビュー1（フェーズ0〜3）**
-- **フェーズ4** ネット（GameStateCodec → NetSync）（online手動確認）
-- **フェーズ5** 進行（GameFlow）＋ 表示仕上げ（HudPresenter 意味API化）
-- **フェーズ6** シーン骨格（Match/Map分離・器・改名）
-- **フェーズ7** `match.gd` 薄化の確認（最終） → **★レビュー2（フェーズ4〜7）**
+### Phase 1 — StatusSystem
+`_game` 撤去、必要依存を注入（Participants/Clock/GameConfig/item_system/NetGateway）。`_was_stunned` を所有。
 
-★レビュー = 人間のレビュー関門。そのブロックの複数フェーズをまとめて確認する。
+### Phase 2 — CombatSystem
+`_game` 撤去、依存注入。`_change_killers` を所有。`_find_aimed_target` を targeting 直呼びへ。
 
-## リスクと注意
+### Phase 3 — ExchangeSystem ＋ ExchangeStation.tscn
+`_game` 撤去、依存注入。交換ホールド/ロック/交換カード index を所有。`setup_stations()` の動的生成を **`scenes/entities/ExchangeStation.tscn`** に置換（**見た目不変**）。
+- **チェックポイント C1**: 単体プレイテスト（kill / change / 交換の見た目・挙動）。
 
-- **RPC のノードパス**: ネットの入口はパスが全ピアで一致する Node が必要。`NetSync` は固定名の子 Node に
-  する（フェーズ4）。移行中に RPC 関数が乗るノードのパスを変えると online が壊れるので、改名（フェーズ6）
-  より前に NetSync を確定させ、改名時はパス維持に注意。
-- **`.tscn` / `.uid` / preload パス**: ファイル移動・改名時は参照を全更新（過去の再編と同手順）。
-- **`_effects` 参照渡し**: 現状は `var e = _effects[p]` で内側辞書の参照を掴んで書き換えている箇所が多い。
-  コンポーネント化では「同じ参照を返す accessor」を用意し、既存の読み書きを壊さない。
-- **HudPresenter の作り直し**: 現 `_game._card_views` 等の内部直読み（ニセ分離）は、各コンポーネント化の
-  タスク内で「意味API 経由の読取」に順次置き換える。フェーズ5で残りを仕上げる。
-- **EOS 認証**: 無い環境でもシングル/LAN は動く前提。online 確認は認証のある環境で行う。
+### Phase 4 — ItemSystem
+`_game` 撤去、依存注入。
 
-## 成果物
+### Phase 5 — AbilitySystem
+`_game` 撤去、依存注入（combat/status/item を明示）。
 
-- 本ファイル `tasks/plan.md`（戦略）
-- `tasks/todo.md`（順序付きタスク一覧・受入基準・検証）
+### Phase 6 — GameFlow ＋ Results.tscn
+`_game` 撤去、依存注入。`show_results()` の動的生成を **`scenes/ui/Results.tscn`** に置換（**見た目不変**）。
+
+### Phase 7 — NetSync ＋ GameStateCodec
+`_game`/`game` 撤去、依存注入（Participants/各 System/GameStateManager）。
+- **チェックポイント C2**: 2インスタンスのオンライン確認（状態同期・@rpc）。
+
+### Phase 8 — HudPresenter
+`_game` 撤去、依存注入（game_hud/GameStateManager/StatusSystem/Participants/CombatSystem/GameConfig）。
+
+### Phase 9 — PlayerController
+`_game` 撤去、依存注入。`_player_kill/change/exchange_target`・`_tutorial_overlay` を所有。
+
+### Phase 10 — main 仕上げ＋ドキュメント
+main を「構築・結線・tick 発火・@rpc 入口」だけに整理（残ヘルパ吸収、`_ready` 結線の可読化）。ARCHITECTURE.md / 必要なら CLAUDE.md を現状反映。
+- **チェックポイント C3**: スキャン + 起動 + 単体プレイテスト + 2インスタンス + SPEC §7 の DoD 全チェック。
+
+## 検証（各フェーズ共通）
+- スキャン: `"$G" --headless --editor --quit-after 300` のエラー0。
+- 起動: `"$G" --headless "res://scenes/match/Match.tscn" --quit-after 250` のエラー0。
+- DoD の grep: `grep -rn "_game\.\|[^_]game\." scripts` が最終的に @rpc 経路以外 0。
+- 挙動/見た目/オンラインは各チェックポイントで実機確認。
+
+## リスクと方針
+- Player/Computer の `extends` 変更（Phase 0c）は影響が広い → 0c 直後に必ず起動確認。
+- .tscn 化は**見た目不変**が条件 → 変換前後でスクリーンショット比較。
+- NetGateway の設計が甘いと結合が残る → 「main への上向き依存はネット入口のみ」に限定し、それ以外は注入で解決。
+- 動作維持は絶対条件ではない（壊れたらその場で修正）。ただし見た目は変えない。
