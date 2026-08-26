@@ -41,6 +41,8 @@ var _combat: CombatSystem = null
 var _ability: AbilitySystem = null
 var _codec := GameStateCodec.new()
 var _net: NetSync = null
+var _flow: GameFlow = null
+var _hud: HudPresenter = null
 var _time_left := 600.0
 var _game_ending := false
 var _exchange_hold_time := 0.0
@@ -78,6 +80,11 @@ func _ready() -> void:
 	_net.name = "NetSync"
 	add_child(_net)
 	_net.setup(self)
+	_flow = GameFlow.new()
+	_flow.name = "GameFlow"
+	add_child(_flow)
+	_flow.setup(self)
+	_hud = HudPresenter.new(self, game_hud)
 	pause_menu.hide()
 	settings_menu.hide()
 	pause_menu.resume_requested.connect(_resume_game)
@@ -130,19 +137,12 @@ func _process(delta: float) -> void:
 
 	if _is_game_authority():
 		_time_left = maxf(_time_left - delta, 0.0)
-	game_hud.set_time_left(_time_left)
-	game_hud.set_stun_status(player.get_stun_time_left(), STUN_SECONDS)
-	_update_player_information_hud()
-	_update_player_exposure_hud()
-	_update_player_edge_status_effects()
+	_hud.refresh_status()
 	_player_kill_target = _find_kill_target(player)
 	_player_change_target = _find_change_target(player)
 	_player_exchange_target = _find_aimed_exchange_station()
 	_update_exchange_hold(delta)
-	game_hud.set_kill_available(_player_kill_target != null)
-	game_hud.set_change_available(_player_change_target != null or _player_exchange_target != null)
-	game_hud.set_kill_cooldown(_get_kill_cooldown_left(player), KILL_COOLDOWN_SECONDS)
-	game_hud.set_ability_cooldown(_get_ability_cooldown_left(player), ABILITY_COOLDOWN_SECONDS)
+	_hud.refresh_actions()
 	if not _is_game_authority():
 		return
 	_update_items(delta)
@@ -492,49 +492,6 @@ func _update_effects() -> void:
 		if not mr.is_empty() and now >= float(mr.get("until", 0.0)):
 			_vision(viewer).map_reveal = {}
 	_sync_player_item_slot()
-
-
-func _update_player_information_hud() -> void:
-	var revealed_positions: Array[Vector3] = []
-	var empty_cards: Array[Dictionary] = []
-	var reveal_data: Dictionary = _vision(player).map_reveal
-	var revealed: Dictionary = reveal_data.get("positions", {})
-	for revealed_position in revealed.values():
-		revealed_positions.append(revealed_position)
-	game_hud.set_minimap_data(player.global_position, revealed_positions)
-
-	if _vision(player).card_view.is_empty():
-		game_hud.set_viewed_hand("", empty_cards)
-		return
-	var view_data: Dictionary = _vision(player).card_view
-	if view_data.has("targets"):
-		var names: Array[String] = []
-		var cards: Array[Dictionary] = []
-		for viewed_target in view_data["targets"]:
-			if is_instance_valid(viewed_target):
-				names.append(_participant_name(viewed_target))
-				cards.append_array(viewed_target.hand)
-		game_hud.set_viewed_hand(" / ".join(names), cards)
-		return
-	var target: Node3D = view_data.get("target")
-	if not is_instance_valid(target):
-		_vision(player).card_view = {}
-		game_hud.set_viewed_hand("", empty_cards)
-		return
-	game_hud.set_viewed_hand(_participant_name(target), target.hand)
-
-
-func _update_player_exposure_hud() -> void:
-	game_hud.set_exposure_status(_is_location_revealed(player), _is_hand_being_viewed(player))
-
-
-func _update_player_edge_status_effects() -> void:
-	var effects: Dictionary = _status(player).data
-	game_hud.set_edge_status_effects(
-		player.has_joker(),
-		float(effects.get("invincible_until", 0.0)) > _now(),
-		int(effects.get("barrier_charges", 0)) > 0
-	)
 
 
 func _is_location_revealed(target: Node3D) -> bool:
@@ -907,118 +864,28 @@ func _receive_respawn(participant_name: String, spawn_position: Vector3) -> void
 
 
 func _has_empty_hand() -> bool:
-	for participant in _participants:
-		if participant.hand.is_empty():
-			return true
-	return false
+	return _flow.has_empty_hand()
 
 
 func _finish_game() -> void:
-	if _game_ending:
-		return
-	_game_ending = true
-	var standings := _calculate_standings()
-	if NetworkManager.is_online and multiplayer.is_server():
-		var network_standings: Dictionary = {}
-		for participant in standings:
-			network_standings[participant.name] = standings[participant]
-		_receive_game_finished.rpc(network_standings)
-	var player_rank := int(standings[player])
-	game_hud.show_end_message(GameConfig.text("win") if player_rank == 1 else GameConfig.text("place") % player_rank)
-	Engine.time_scale = 0.2
-	await get_tree().create_timer(5.0, true, false, true).timeout
-	Engine.time_scale = 1.0
-	_show_results(standings)
+	_flow.finish_game()
+
+
+func broadcast_game_finished(network_standings: Dictionary) -> void:
+	_receive_game_finished.rpc(network_standings)
 
 
 @rpc("authority", "call_remote", "reliable")
 func _receive_game_finished(network_standings: Dictionary) -> void:
-	if _game_ending:
-		return
-	_game_ending = true
-	var standings: Dictionary = {}
-	for participant_name in network_standings:
-		var participant := _participant_by_name(String(participant_name))
-		if participant != null:
-			standings[participant] = int(network_standings[participant_name])
-	var player_rank := int(standings.get(player, _participants.size()))
-	game_hud.show_end_message(GameConfig.text("win") if player_rank == 1 else GameConfig.text("place") % player_rank)
-	Engine.time_scale = 0.2
-	await get_tree().create_timer(5.0, true, false, true).timeout
-	Engine.time_scale = 1.0
-	_show_results(standings)
+	_flow.receive_game_finished(network_standings)
 
 
 func _calculate_standings() -> Dictionary:
-	var sorted_participants := _participants.duplicate()
-	sorted_participants.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		if a.has_joker() != b.has_joker():
-			return not a.has_joker()
-		return a.hand.size() < b.hand.size()
-	)
-
-	var standings: Dictionary = {}
-	var previous: Node3D = null
-	var current_rank := 0
-	for index in sorted_participants.size():
-		var participant: Node3D = sorted_participants[index]
-		if previous == null or participant.has_joker() != previous.has_joker() or participant.hand.size() != previous.hand.size():
-			current_rank = index + 1
-		standings[participant] = current_rank
-		previous = participant
-	return standings
+	return _flow.calculate_standings()
 
 
 func _show_results(standings: Dictionary) -> void:
-	get_tree().paused = true
-	game_hud.hide()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-	var layer := CanvasLayer.new()
-	layer.process_mode = Node.PROCESS_MODE_ALWAYS
-	add_child(layer)
-	var background := ColorRect.new()
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.color = Color(0.025, 0.02, 0.035, 0.98)
-	layer.add_child(background)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	layer.add_child(center)
-	var content := VBoxContainer.new()
-	content.custom_minimum_size = Vector2(650, 0)
-	content.add_theme_constant_override("separation", 14)
-	center.add_child(content)
-	var title := Label.new()
-	title.text = GameConfig.text("result")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 52)
-	content.add_child(title)
-
-	var sorted_participants := _participants.duplicate()
-	sorted_participants.sort_custom(func(a: Node3D, b: Node3D) -> bool:
-		return int(standings[a]) < int(standings[b])
-	)
-	for participant in sorted_participants:
-		var row := Label.new()
-		row.text = "%d  %s  -  %s%s" % [
-			int(standings[participant]),
-			_participant_name(participant),
-			GameConfig.text("cards") % participant.hand.size(),
-			("  ジョーカー" if GameConfig.language == "ja" else "  JOKER") if participant.has_joker() else "",
-		]
-		row.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		row.add_theme_font_size_override("font_size", 26)
-		content.add_child(row)
-
-	var title_button := Button.new()
-	title_button.custom_minimum_size = Vector2(0, 60)
-	title_button.text = "Classic Roomに戻る" if GameConfig.language == "ja" else "Return to Classic Room"
-	title_button.add_theme_font_size_override("font_size", 24)
-	title_button.pressed.connect(func() -> void:
-		get_tree().paused = false
-		NetworkManager.return_to_waiting_room()
-	)
-	content.add_child(title_button)
+	_flow.show_results(standings)
 
 
 func _participant_name(participant: Node3D) -> String:
