@@ -161,7 +161,7 @@ func update_hold(delta: float) -> void:
 	_game.game_hud.set_exchange_progress(_game._exchange_hold_time / _game.EXCHANGE_HOLD_SECONDS, true)
 	if _game._exchange_hold_time >= _game.EXCHANGE_HOLD_SECONDS:
 		var station_index := stations().find(_game._exchange_hold_target)
-		if _game._is_game_authority():
+		if _game._net.is_game_authority():
 			exchange_with_station(_game.player, station_index, _game._exchange_hold_card_index)
 		else:
 			_game.request_exchange_remote(station_index, _game._exchange_hold_card_index)

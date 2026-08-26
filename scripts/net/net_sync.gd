@@ -30,25 +30,25 @@ func peer_for_participant(participant: Node3D) -> int:
 func execute_player_action(actor: Node3D, action: String, value: int, target_name: String) -> void:
 	match action:
 		"pair":
-			_game._try_use_pair(actor, value)
+			_game._ability.try_use_pair(actor, value)
 		"item":
-			_game._use_item(actor)
+			_game._item_system.use(actor)
 		"scythe":
 			var target: Node3D = _game._participant_by_name(target_name)
 			if can_server_scythe(actor, target):
-				_game._use_scythe(actor, target)
+				_game._combat.use_scythe(actor, target)
 		"coin":
 			var target: Node3D = _game._participant_by_name(target_name)
 			if target != null and can_server_coin_change(actor, target):
-				_game._perform_change(actor, target, true)
+				_game._combat.perform_change(actor, target, true)
 		"kill":
 			var target: Node3D = _game._participant_by_name(target_name)
 			if target != null and can_server_kill(actor, target):
-				_game._perform_kill(actor, target)
+				_game._combat.perform_kill(actor, target)
 		"change":
 			var target: Node3D = _game._participant_by_name(target_name)
 			if target != null and can_server_change(actor, target):
-				_game._perform_change(actor, target)
+				_game._combat.perform_change(actor, target)
 
 
 func can_server_kill(actor: Node3D, target: Node3D) -> bool:

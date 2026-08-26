@@ -69,7 +69,7 @@ func update_effects() -> void:
 		var mr: Dictionary = _game._vision(viewer).map_reveal
 		if not mr.is_empty() and now >= float(mr.get("until", 0.0)):
 			_game._vision(viewer).map_reveal = {}
-	_game._sync_player_item_slot()
+	_game._item_system.sync_player_slot()
 
 
 func is_location_revealed(target: Node3D) -> bool:

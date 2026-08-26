@@ -6,4 +6,4 @@ extends Ability
 func apply(ctx: AbilityContext) -> void:
 	ctx.effects["scythe_until"] = ctx.now + 15.0
 	ctx.effects["scythe_enhanced"] = ctx.is_enhanced
-	ctx.game._sync_player_item_slot()
+	ctx.game._item_system.sync_player_slot()

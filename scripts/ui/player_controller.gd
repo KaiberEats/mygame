@@ -33,7 +33,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		request_use_button_action()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and not event.echo:
-		var pair_slot: int = _game._get_pair_slot_from_event(event)
+		var pair_slot: int = _game._ability.get_pair_slot_from_event(event)
 		if pair_slot >= 0:
 			request_local_action("pair", pair_slot)
 			get_viewport().set_input_as_handled()
@@ -140,7 +140,7 @@ func request_use_button_action() -> void:
 
 
 func request_local_action(action: String, value: int = 0, target_name: String = "") -> void:
-	if _game._is_game_authority():
-		_game._execute_player_action(_game.player, action, value, target_name)
+	if _game._net.is_game_authority():
+		_game._net.execute_player_action(_game.player, action, value, target_name)
 	else:
 		_game.request_action_remote(action, value, target_name)

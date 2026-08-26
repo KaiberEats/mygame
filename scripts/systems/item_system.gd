@@ -54,7 +54,7 @@ func use(participant: Node3D) -> void:
 			return
 		_game._launch_missile(participant, target)
 	elif item_name == "SWORD":
-		_game._use_sword(participant)
+		_game._combat.use_sword(participant)
 	var charges_left := int(item.get("charges", 1)) - 1
 	if charges_left > 0:
 		item["charges"] = charges_left
@@ -72,11 +72,11 @@ func activate(_participant: Node3D, _item_name: String) -> void:
 func use_passive(participant: Node3D, target_name: String) -> void:
 	if _game._status_system.has_ready_scythe(participant):
 		var target: Node3D = _game._participant_by_name(target_name)
-		_game._use_scythe(participant, target)
+		_game._combat.use_scythe(participant, target)
 	elif _game._status_system.has_ready_coin(participant):
 		var target: Node3D = _game._participant_by_name(target_name)
 		if target != null:
-			_game._perform_change(participant, target, true)
+			_game._combat.perform_change(participant, target, true)
 
 
 func sync_player_slot() -> void:

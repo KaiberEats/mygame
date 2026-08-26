@@ -39,8 +39,8 @@ func build_state(game: Node) -> Dictionary:
 			"item": network_item_for(game, participant),
 		}
 	var station_cards: Array = []
-	for station in game._exchange_stations():
-		station_cards.append(game._station_cards(station))
+	for station in game._exchange.stations():
+		station_cards.append(game._exchange.station_cards(station))
 	var change_rights: Dictionary = {}
 	for target in game._change_killers:
 		if is_instance_valid(target) and is_instance_valid(game._change_killers[target]):
@@ -123,10 +123,10 @@ func apply_state(game: Node, state: Dictionary) -> void:
 			game._item(participant).clear()
 		else:
 			game._item(participant).data = item
-	var stations: Array = game._exchange_stations()
+	var stations: Array = game._exchange.stations()
 	var station_cards: Array = state.get("stations", [])
 	for index in mini(stations.size(), station_cards.size()):
-		game._set_station_cards(stations[index], station_cards[index])
+		game._exchange.set_station_cards(stations[index], station_cards[index])
 	game._change_killers.clear()
 	for target_name in state.get("change_rights", {}):
 		var target: Node3D = game._participant_by_name(String(target_name))
@@ -135,7 +135,7 @@ func apply_state(game: Node, state: Dictionary) -> void:
 			game._change_killers[target] = attacker
 	apply_card_view_state(game, state.get("card_views", {}), now)
 	apply_map_reveal_state(game, state.get("map_reveals", {}), now)
-	game._sync_player_item_slot()
+	game._item_system.sync_player_slot()
 
 
 func apply_effect_state(game: Node, participant: Node3D, state: Dictionary, now: float) -> void:
@@ -148,8 +148,8 @@ func apply_effect_state(game: Node, participant: Node3D, state: Dictionary, now:
 	game._status(participant).data = effects
 	participant.set_gold_outline(effects.has("invincible_until"))
 	participant.set_invisible(effects.has("invisible_until"))
-	game._set_barrier_visual(participant, int(effects.get("barrier_charges", 0)) > 0)
-	game._refresh_speed_multiplier(participant)
+	game._combat.set_barrier_visual(participant, int(effects.get("barrier_charges", 0)) > 0)
+	game._status_system.refresh_speed_multiplier(participant)
 	if participant.has_method("set_can_kill_without_joker"):
 		participant.set_can_kill_without_joker(bool(effects.get("extra_kill_available", false)))
 

@@ -68,12 +68,12 @@ func perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: b
 		stun_without_change(attacker)
 		effects.erase("counter_until")
 		effects.erase("counter_duration")
-		_game._sync_player_item_slot()
+		_game._item_system.sync_player_slot()
 		return
 	if int(effects.get("barrier_charges", 0)) > 0:
 		effects["barrier_charges"] = int(effects["barrier_charges"]) - 1
 		set_barrier_visual(target, int(effects.get("barrier_charges", 0)) > 0)
-		_game._sync_player_item_slot()
+		_game._item_system.sync_player_slot()
 		return
 
 	var used_extra_kill: bool = consume_extra_kill and not attacker.has_joker() and _game._status_system.has_extra_kill(attacker)
@@ -82,7 +82,7 @@ func perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: b
 		attacker_effects["extra_kill_available"] = false
 		if attacker.has_method("set_can_kill_without_joker"):
 			attacker.set_can_kill_without_joker(false)
-		_game._sync_player_item_slot()
+		_game._item_system.sync_player_slot()
 	target.stun(_game.STUN_SECONDS)
 	show_kill_notifications(attacker, target)
 	if allow_change and not used_extra_kill:
@@ -126,7 +126,7 @@ func perform_change(attacker: Node3D, target: Node3D, forced_free_change: bool =
 				effects.erase("coin_duration")
 		else:
 			effects["free_change_count"] = maxi(int(effects.get("free_change_count", 0)) - 1, 0)
-		_game._sync_player_item_slot()
+		_game._item_system.sync_player_slot()
 
 	_game._player_change_target = null
 	_game.game_hud.set_change_available(false)
@@ -149,14 +149,14 @@ func use_scythe(attacker: Node3D, target: Node3D) -> void:
 	if is_enhanced:
 		effects["automatic_kill_until"] = _game._now() + remaining
 		effects["automatic_kill_targets"] = {}
-		_game._sync_player_item_slot()
+		_game._item_system.sync_player_slot()
 		return
 	if target == null or _game._get_kill_cooldown_left(attacker) > 0.0:
-		_game._sync_player_item_slot()
+		_game._item_system.sync_player_slot()
 		return
 	_game._cooldown(attacker).kill_until = _game._now() + _game.KILL_COOLDOWN_SECONDS
 	perform_kill_with_options(attacker, target, false, false)
-	_game._sync_player_item_slot()
+	_game._item_system.sync_player_slot()
 
 
 func use_sword(attacker: Node3D) -> void:

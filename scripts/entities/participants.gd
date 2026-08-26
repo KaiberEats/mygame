@@ -71,7 +71,7 @@ func refresh_network_player_profiles() -> void:
 	for participant in _game._participants:
 		if not is_instance_valid(participant):
 			continue
-		var peer_id: int = _game._peer_for_participant(participant)
+		var peer_id: int = _game._net.peer_for_participant(participant)
 		if peer_id <= 0:
 			continue
 		participant.display_name = NetworkManager.get_player_name(peer_id)
@@ -97,7 +97,7 @@ func cache_spawn_positions() -> void:
 
 
 func default_spawn_for(participant: Node3D) -> Vector3:
-	var peer_id: int = _game._peer_for_participant(participant)
+	var peer_id: int = _game._net.peer_for_participant(participant)
 	if peer_id > 0:
 		return spawn_position_for_peer(peer_id)
 	var index: int = maxi(_game._participants.find(participant), 0)
@@ -115,6 +115,6 @@ func respawn_out_of_bounds() -> void:
 		participant.global_position = spawn_position
 		if participant is CharacterBody3D:
 			participant.velocity = Vector3.ZERO
-		var peer_id: int = _game._peer_for_participant(participant)
+		var peer_id: int = _game._net.peer_for_participant(participant)
 		if NetworkManager.is_online and peer_id > 1:
 			_game.respawn_remote(peer_id, participant.name, spawn_position)
