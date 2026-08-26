@@ -23,11 +23,12 @@ const TUTORIAL_SCENE := preload("res://scenes/Tutorial.tscn")
 
 @export var minimap_world_half_extent := 20.0
 
-@onready var pause_menu: CanvasLayer = $PauseMenu
-@onready var settings_menu: Control = $Settings
-@onready var deck: Node = $Deck
-@onready var game_hud: CanvasLayer = $GameHud
-@onready var player: CharacterBody3D = $Player
+@onready var pause_menu: CanvasLayer = $UI/PauseMenu
+@onready var settings_menu: Control = $UI/Settings
+@onready var deck: Node = $Services/Deck
+@onready var game_hud: CanvasLayer = $UI/GameHud
+@onready var player: CharacterBody3D = $Participants/Player
+@onready var _participants_root: Node3D = $Participants
 
 var _participants: Array[Node3D] = []
 var _player_kill_target: Node3D = null
@@ -103,7 +104,7 @@ func _ready() -> void:
 	player.ensure_local_camera()
 	player.hand_changed.connect(_on_player_hand_changed)
 	_participants = [player]
-	for child in get_children():
+	for child in _participants_root.get_children():
 		if child is CharacterBody3D and child != player:
 			_participants.append(child)
 	_cache_participant_spawn_positions()

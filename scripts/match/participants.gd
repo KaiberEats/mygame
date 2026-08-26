@@ -19,7 +19,7 @@ func setup(game: Node) -> void:
 
 func configure_computers() -> void:
 	var computers: Array = []
-	for child in _game.get_children():
+	for child in _game._participants_root.get_children():
 		if child is CharacterBody3D and child != _game.player:
 			computers.append(child)
 
@@ -28,7 +28,7 @@ func configure_computers() -> void:
 		computer.free()
 	while computers.size() < GameConfig.computer_count:
 		var computer: Node3D = _game.COMPUTER_SCENE.instantiate()
-		_game.add_child(computer)
+		_game._participants_root.add_child(computer)
 		computers.append(computer)
 
 	for index in computers.size():
@@ -53,7 +53,7 @@ func spawn_network_players() -> void:
 		remote_player.name = "NetworkPlayer_%d" % int(peer_id)
 		remote_player.display_name = NetworkManager.get_player_name(int(peer_id))
 		remote_player.set_multiplayer_authority(int(peer_id))
-		_game.add_child(remote_player)
+		_game._participants_root.add_child(remote_player)
 		remote_player.set_body_color(NetworkManager.get_player_color(int(peer_id)))
 		remote_player.global_position = spawn_position_for_peer(int(peer_id))
 		if int(peer_id) == local_peer:
