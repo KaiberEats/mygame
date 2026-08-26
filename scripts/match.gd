@@ -1,5 +1,9 @@
 extends Node3D
 
+## 試合(Match.tscn)のエントリ / Composition Root（旧 main.gd）。
+## ここでは各 System/コンポーネントを構築・結線し、_process で tick を発火するだけ。
+## ゲームのルール・状態・表示は持たず、systems/ · abilities/ · entities/components · net/ · ui/ が担う。
+
 const HAND_SIZE := 8
 const KILL_DISTANCE := 5.0
 const KILL_CENTER_DOT := 0.985

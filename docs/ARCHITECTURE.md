@@ -130,11 +130,10 @@ Player (CharacterBody3D, player.gd)
 
 ```
 scripts/
-  match.gd                     Composition Root
-  match/          participants.gd  game_flow.gd
-  systems/        combat_system  ability_system  item_system  exchange_system
+  match.gd                     Composition Root（エントリ。scripts/ 直下の単独ファイル）
+  systems/        combat_system  ability_system  item_system  exchange_system  game_flow
   abilities/      ability(基底)  ability_context  ability_01..13
-  entities/       player  computer  homing_missile
+  entities/       player  computer  homing_missile  participants
      components/  status_component  cooldown_component  item_component  vision_component
   net/            net_sync  game_state_codec  network_manager  eos_manager  eos_lobby_manager
   ui/             game_hud  hud_presenter  minimap  item_slot  card_view
