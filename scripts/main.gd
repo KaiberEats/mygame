@@ -43,6 +43,7 @@ var _codec := GameStateCodec.new()
 var _net: NetSync = null
 var _flow: GameFlow = null
 var _hud: HudPresenter = null
+var _participants_mgr: Participants = null
 var _time_left := 600.0
 var _game_ending := false
 var _exchange_hold_time := 0.0
@@ -85,6 +86,8 @@ func _ready() -> void:
 	add_child(_flow)
 	_flow.setup(self)
 	_hud = HudPresenter.new(self, game_hud)
+	_participants_mgr = Participants.new()
+	_participants_mgr.setup(self)
 	pause_menu.hide()
 	settings_menu.hide()
 	pause_menu.resume_requested.connect(_resume_game)
@@ -740,117 +743,39 @@ func _get_ability_message(rank: int, is_enhanced: bool) -> String:
 
 
 func _configure_computers() -> void:
-	var computers: Array[Node3D] = []
-	for child in get_children():
-		if child is CharacterBody3D and child != player:
-			computers.append(child)
-
-	while computers.size() > GameConfig.computer_count:
-		var computer: Node3D = computers.pop_back()
-		computer.free()
-	while computers.size() < GameConfig.computer_count:
-		var computer: Node3D = COMPUTER_SCENE.instantiate()
-		add_child(computer)
-		computers.append(computer)
-
-	for index in computers.size():
-		computers[index].name = ("%s %d" % ["コンピューター" if GameConfig.language == "ja" else "Computer", index + 1])
-		computers[index].global_position = _spawn_position_for_index(index + 1)
-	player.display_name = GameConfig.player_name
-	player.global_position = _spawn_position_for_index(0)
-	if player.has_method("set_body_color"):
-		player.set_body_color(GameConfig.player_color())
+	_participants_mgr.configure_computers()
 
 
 func _spawn_network_players() -> void:
-	var local_peer := multiplayer.get_unique_id()
-	player.set_multiplayer_authority(1)
-	player.display_name = NetworkManager.get_player_name(1) if NetworkManager.is_online else GameConfig.player_name
-	if player.has_method("set_body_color"):
-		player.set_body_color(NetworkManager.get_player_color(1) if NetworkManager.is_online else GameConfig.player_color())
-	for peer_id in NetworkManager.players:
-		if int(peer_id) == 1:
-			continue
-		var remote_player: CharacterBody3D = PLAYER_SCENE.instantiate()
-		remote_player.name = "NetworkPlayer_%d" % int(peer_id)
-		remote_player.display_name = NetworkManager.get_player_name(int(peer_id))
-		remote_player.set_multiplayer_authority(int(peer_id))
-		add_child(remote_player)
-		remote_player.set_body_color(NetworkManager.get_player_color(int(peer_id)))
-		remote_player.global_position = _spawn_position_for_peer(int(peer_id))
-		if int(peer_id) == local_peer:
-			player = remote_player
-			player.ensure_local_camera()
+	_participants_mgr.spawn_network_players()
 
 
 func _refresh_network_player_profiles() -> void:
-	if not NetworkManager.is_online:
-		if player != null:
-			player.display_name = GameConfig.player_name
-			if player.has_method("set_body_color"):
-				player.set_body_color(GameConfig.player_color())
-		return
-	for participant in _participants:
-		if not is_instance_valid(participant):
-			continue
-		var peer_id := _peer_for_participant(participant)
-		if peer_id <= 0:
-			continue
-		participant.display_name = NetworkManager.get_player_name(peer_id)
-		if participant.has_method("set_body_color"):
-			participant.set_body_color(NetworkManager.get_player_color(peer_id))
+	_participants_mgr.refresh_network_player_profiles()
 
 
 func _spawn_position_for_index(index: int) -> Vector3:
-	var spawn_points := [
-		Vector3(-34.0, 0.0, 34.0),
-		Vector3(34.0, 0.0, 34.0),
-		Vector3(34.0, 0.0, -34.0),
-		Vector3(-34.0, 0.0, -34.0),
-		Vector3(0.0, 0.0, 34.0),
-		Vector3(34.0, 0.0, 0.0),
-		Vector3(0.0, 0.0, -34.0),
-		Vector3(-34.0, 0.0, 0.0),
-		Vector3(0.0, 0.0, 0.0),
-	]
-	return spawn_points[index % spawn_points.size()]
+	return _participants_mgr.spawn_position_for_index(index)
 
 
 func _spawn_position_for_peer(peer_id: int) -> Vector3:
-	if peer_id <= 1:
-		return _spawn_position_for_index(0)
-	return _spawn_position_for_index(peer_id - 1)
+	return _participants_mgr.spawn_position_for_peer(peer_id)
+
+
+func respawn_remote(peer_id: int, participant_name: String, spawn_position: Vector3) -> void:
+	_receive_respawn.rpc_id(peer_id, participant_name, spawn_position)
 
 
 func _respawn_out_of_bounds_participants() -> void:
-	for participant in _participants:
-		if not is_instance_valid(participant):
-			continue
-		var horizontal := Vector2(participant.global_position.x, participant.global_position.z)
-		if participant.global_position.y >= FALL_RESPAWN_Y and horizontal.length() <= MAP_RESPAWN_DISTANCE:
-			continue
-		var spawn_position: Vector3 = _participant_spawn_positions.get(participant, _default_spawn_for_participant(participant))
-		participant.global_position = spawn_position
-		if participant is CharacterBody3D:
-			participant.velocity = Vector3.ZERO
-		var peer_id := _peer_for_participant(participant)
-		if NetworkManager.is_online and peer_id > 1:
-			_receive_respawn.rpc_id(peer_id, participant.name, spawn_position)
+	_participants_mgr.respawn_out_of_bounds()
 
 
 func _default_spawn_for_participant(participant: Node3D) -> Vector3:
-	var peer_id := _peer_for_participant(participant)
-	if peer_id > 0:
-		return _spawn_position_for_peer(peer_id)
-	var index := maxi(_participants.find(participant), 0)
-	return _spawn_position_for_index(index)
+	return _participants_mgr.default_spawn_for(participant)
 
 
 func _cache_participant_spawn_positions() -> void:
-	_participant_spawn_positions.clear()
-	for index in _participants.size():
-		var participant: Node3D = _participants[index]
-		_participant_spawn_positions[participant] = _default_spawn_for_participant(participant)
+	_participants_mgr.cache_spawn_positions()
 
 
 @rpc("authority", "call_remote", "reliable")
