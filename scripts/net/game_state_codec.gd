@@ -17,7 +17,7 @@ const EFFECT_VALUE_KEYS := [
 
 func build_state(game: Node) -> Dictionary:
 	var participant_states: Dictionary = {}
-	var now: float = game._now()
+	var now: float = Clock.now()
 	for participant in game._participants:
 		var effect_state: Dictionary = {}
 		var effects: Dictionary = game._status(participant).data
@@ -102,7 +102,7 @@ func build_map_reveal_state(game: Node, now: float) -> Dictionary:
 
 
 func apply_state(game: Node, state: Dictionary) -> void:
-	var now: float = game._now()
+	var now: float = Clock.now()
 	game._time_left = float(state.get("time_left", game._time_left))
 	game.game_hud.set_deck_count(int(state.get("deck_remaining", 0)), int(state.get("deck_total", 0)))
 	var participant_states: Dictionary = state.get("participants", {})

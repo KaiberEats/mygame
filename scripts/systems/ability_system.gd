@@ -45,7 +45,7 @@ func try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 	participant.set_hand(updated_hand)
 
 	activate_pair_ability(participant, ability_rank)
-	_game._cooldown(participant).ability_until = _game._now() + GameConfig.ABILITY_COOLDOWN_SECONDS
+	_game._cooldown(participant).ability_until = Clock.now() + GameConfig.ABILITY_COOLDOWN_SECONDS
 
 	_game._refill_hand(participant)
 
@@ -65,7 +65,7 @@ func activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
 		ctx.game = _game
 		ctx.caster = participant
 		ctx.is_enhanced = is_enhanced
-		ctx.now = _game._now()
+		ctx.now = Clock.now()
 		ctx.effects = effects
 		ability.apply(ctx)
 

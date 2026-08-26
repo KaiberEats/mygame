@@ -56,7 +56,7 @@ func update_automatic_kills() -> void:
 func perform_kill(attacker: Node3D, target: Node3D) -> void:
 	if _game._get_kill_cooldown_left(attacker) > 0.0:
 		return
-	_game._cooldown(attacker).kill_until = _game._now() + GameConfig.KILL_COOLDOWN_SECONDS
+	_game._cooldown(attacker).kill_until = Clock.now() + GameConfig.KILL_COOLDOWN_SECONDS
 	perform_kill_with_options(attacker, target, true, true)
 
 
@@ -142,19 +142,19 @@ func use_scythe(attacker: Node3D, target: Node3D) -> void:
 	var effects: Dictionary = _game._status(attacker).data
 	if not _game._status_system.has_ready_scythe(attacker):
 		return
-	var remaining: float = maxf(float(effects.get("scythe_until", 0.0)) - _game._now(), 0.0)
+	var remaining: float = maxf(float(effects.get("scythe_until", 0.0)) - Clock.now(), 0.0)
 	var is_enhanced := bool(effects.get("scythe_enhanced", false))
 	effects.erase("scythe_until")
 	effects.erase("scythe_enhanced")
 	if is_enhanced:
-		effects["automatic_kill_until"] = _game._now() + remaining
+		effects["automatic_kill_until"] = Clock.now() + remaining
 		effects["automatic_kill_targets"] = {}
 		_game._item_system.sync_player_slot()
 		return
 	if target == null or _game._get_kill_cooldown_left(attacker) > 0.0:
 		_game._item_system.sync_player_slot()
 		return
-	_game._cooldown(attacker).kill_until = _game._now() + GameConfig.KILL_COOLDOWN_SECONDS
+	_game._cooldown(attacker).kill_until = Clock.now() + GameConfig.KILL_COOLDOWN_SECONDS
 	perform_kill_with_options(attacker, target, false, false)
 	_game._item_system.sync_player_slot()
 

@@ -105,7 +105,7 @@ func passive_slot_for(participant: Node3D) -> Dictionary:
 	if not is_instance_valid(participant):
 		return {}
 	var effects: Dictionary = _game._status(participant).data
-	var now: float = _game._now()
+	var now: float = Clock.now()
 	var scythe_until := maxf(
 		float(effects.get("scythe_until", 0.0)),
 		float(effects.get("automatic_kill_until", 0.0))

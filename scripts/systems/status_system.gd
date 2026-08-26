@@ -13,7 +13,7 @@ func setup(game: Node) -> void:
 
 ## 毎フレーム: 各効果の期限切れを処理し、視界の期限も掃除する。
 func update_effects() -> void:
-	var now: float = _game._now()
+	var now: float = Clock.now()
 	for participant in _game._participants:
 		var effects: Dictionary = _game._status(participant).data
 		if float(effects.get("invincible_until", 0.0)) > 0.0 and now >= float(effects["invincible_until"]):
@@ -102,20 +102,20 @@ func has_free_change(participant: Node3D) -> bool:
 
 func has_ready_scythe(participant: Node3D) -> bool:
 	var effects: Dictionary = _game._status(participant).data
-	return float(effects.get("scythe_until", 0.0)) > _game._now()
+	return float(effects.get("scythe_until", 0.0)) > Clock.now()
 
 
 func has_ready_coin(participant: Node3D) -> bool:
 	var effects: Dictionary = _game._status(participant).data
-	return int(effects.get("coin_count", 0)) > 0 and float(effects.get("coin_until", 0.0)) > _game._now()
+	return int(effects.get("coin_count", 0)) > 0 and float(effects.get("coin_until", 0.0)) > Clock.now()
 
 
 func is_effect_active(participant: Node3D, key: String) -> bool:
-	return float(_game._status(participant).data.get(key, 0.0)) > _game._now()
+	return float(_game._status(participant).data.get(key, 0.0)) > Clock.now()
 
 
 func update_post_stun_buffs() -> void:
-	var now: float = _game._now()
+	var now: float = Clock.now()
 	for participant in _game._participants:
 		var is_stunned_now: bool = participant.is_stunned()
 		if bool(_game._was_stunned.get(participant, false)) and not is_stunned_now:

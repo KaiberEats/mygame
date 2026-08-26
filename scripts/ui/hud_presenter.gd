@@ -68,6 +68,6 @@ func _update_edge_status() -> void:
 	var effects: Dictionary = _game._status(_game.player).data
 	_view.set_edge_status_effects(
 		_game.player.has_joker(),
-		float(effects.get("invincible_until", 0.0)) > _game._now(),
+		float(effects.get("invincible_until", 0.0)) > Clock.now(),
 		int(effects.get("barrier_charges", 0)) > 0
 	)

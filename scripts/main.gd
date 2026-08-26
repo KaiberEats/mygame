@@ -240,11 +240,11 @@ func _try_computer_free_changes() -> void:
 
 
 func _get_kill_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(_cooldown(participant).kill_until) - _now(), 0.0)
+	return maxf(float(_cooldown(participant).kill_until) - Clock.now(), 0.0)
 
 
 func _get_ability_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(_cooldown(participant).ability_until) - _now(), 0.0)
+	return maxf(float(_cooldown(participant).ability_until) - Clock.now(), 0.0)
 
 
 func respawn_remote(peer_id: int, participant_name: String, spawn_position: Vector3) -> void:
@@ -404,5 +404,3 @@ func _vision(participant: Node) -> VisionComponent:
 	return participant.get_node(^"VisionComponent")
 
 
-func _now() -> float:
-	return Time.get_ticks_msec() / 1000.0
