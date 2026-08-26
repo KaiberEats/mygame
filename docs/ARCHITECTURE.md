@@ -88,8 +88,8 @@ Player (CharacterBody3D, player.gd)
 
 | スクリプト | 付く場所 | 責務 |
 |---|---|---|
-| `match.gd` | Match(root) | 構築・`_process` で System の `tick()` を発火・結線 |
-| `participants.gd` | Participants | 参加者リスト・名前/peer 解決・spawn 配置 |
+| `match.gd` | Match(root) | オーケストレーター。構築・結線・`_process` で各層の tick 発火・@rpc 入口・共有アクセサ |
+| `participants.gd` | `entities/`（RefCounted, match が保持） | 参加者の生成・配置・リスポーン |
 | `status_component.gd` | 参加者の子 | 時限効果の保持・期限処理・問い合わせ・変化 signal |
 | `cooldown_component.gd` | 参加者の子 | kill / ability クールダウン |
 | `item_component.gd` | 参加者の子 | 所持アイテム・パッシブスロット算出 |
