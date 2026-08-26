@@ -174,7 +174,7 @@ func _apply_responsive_layout() -> void:
 
 func _start_single_player() -> void:
 	NetworkManager.close()
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/WaitingRoom.tscn")
 
 
 func _build_mode_menu() -> void:
@@ -228,7 +228,7 @@ func _build_mode_menu() -> void:
 	_host_button.custom_minimum_size = Vector2(300, 56)
 	_host_button.pressed.connect(func() -> void:
 		if NetworkManager.host(int(_port_spin.value)) == OK:
-			get_tree().change_scene_to_file("res://scenes/Main.tscn")
+			get_tree().change_scene_to_file("res://scenes/WaitingRoom.tscn")
 	)
 	_mode_menu.add_child(_host_button)
 	_address_edit = LineEdit.new()
