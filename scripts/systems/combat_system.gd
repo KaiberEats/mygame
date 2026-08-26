@@ -23,7 +23,7 @@ func try_computer_kills() -> void:
 			continue
 
 		var target: Node3D = participant.get_chase_target()
-		if target != null and participant.global_position.distance_to(target.global_position) <= _game.KILL_DISTANCE:
+		if target != null and participant.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE:
 			perform_kill(participant, target)
 			if randf() < 0.5:
 				perform_change(participant, target)
@@ -41,7 +41,7 @@ func update_automatic_kills() -> void:
 		for target in _game._participants:
 			if (
 				target == attacker
-				or attacker.global_position.distance_to(target.global_position) > _game.KILL_DISTANCE
+				or attacker.global_position.distance_to(target.global_position) > GameConfig.KILL_DISTANCE
 			):
 				continue
 			current_targets[target] = true
@@ -56,7 +56,7 @@ func update_automatic_kills() -> void:
 func perform_kill(attacker: Node3D, target: Node3D) -> void:
 	if _game._get_kill_cooldown_left(attacker) > 0.0:
 		return
-	_game._cooldown(attacker).kill_until = _game._now() + _game.KILL_COOLDOWN_SECONDS
+	_game._cooldown(attacker).kill_until = _game._now() + GameConfig.KILL_COOLDOWN_SECONDS
 	perform_kill_with_options(attacker, target, true, true)
 
 
@@ -83,7 +83,7 @@ func perform_kill_with_options(attacker: Node3D, target: Node3D, allow_change: b
 		if attacker.has_method("set_can_kill_without_joker"):
 			attacker.set_can_kill_without_joker(false)
 		_game._item_system.sync_player_slot()
-	target.stun(_game.STUN_SECONDS)
+	target.stun(GameConfig.STUN_SECONDS)
 	show_kill_notifications(attacker, target)
 	if allow_change and not used_extra_kill:
 		_game._change_killers[target] = attacker
@@ -154,18 +154,18 @@ func use_scythe(attacker: Node3D, target: Node3D) -> void:
 	if target == null or _game._get_kill_cooldown_left(attacker) > 0.0:
 		_game._item_system.sync_player_slot()
 		return
-	_game._cooldown(attacker).kill_until = _game._now() + _game.KILL_COOLDOWN_SECONDS
+	_game._cooldown(attacker).kill_until = _game._now() + GameConfig.KILL_COOLDOWN_SECONDS
 	perform_kill_with_options(attacker, target, false, false)
 	_game._item_system.sync_player_slot()
 
 
 func use_sword(attacker: Node3D) -> void:
 	for target in _game._participants:
-		if target == attacker or attacker.global_position.distance_to(target.global_position) > _game.KILL_DISTANCE:
+		if target == attacker or attacker.global_position.distance_to(target.global_position) > GameConfig.KILL_DISTANCE:
 			continue
 
 		# Sword hits intentionally bypass invincibility, barriers, counters, and other defenses.
-		target.stun(_game.STUN_SECONDS)
+		target.stun(GameConfig.STUN_SECONDS)
 		show_kill_notifications(attacker, target)
 		_game._change_killers[target] = attacker
 
@@ -178,7 +178,7 @@ func use_sword(attacker: Node3D) -> void:
 func stun_without_change(target: Node3D) -> void:
 	if _game._status_system.is_effect_active(target, "invincible_until"):
 		return
-	target.stun(_game.STUN_SECONDS)
+	target.stun(GameConfig.STUN_SECONDS)
 	_game._change_killers.erase(target)
 
 

@@ -109,7 +109,7 @@ func respawn_out_of_bounds() -> void:
 		if not is_instance_valid(participant):
 			continue
 		var horizontal := Vector2(participant.global_position.x, participant.global_position.z)
-		if participant.global_position.y >= _game.FALL_RESPAWN_Y and horizontal.length() <= _game.MAP_RESPAWN_DISTANCE:
+		if participant.global_position.y >= GameConfig.FALL_RESPAWN_Y and horizontal.length() <= GameConfig.MAP_RESPAWN_DISTANCE:
 			continue
 		var spawn_position: Vector3 = _game._participant_spawn_positions.get(participant, default_spawn_for(participant))
 		participant.global_position = spawn_position

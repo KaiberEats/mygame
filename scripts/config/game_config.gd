@@ -6,6 +6,24 @@ signal ui_scale_changed
 const TIME_OPTIONS: Array[int] = [5, 10, 15, 20, 25, 30]
 const PLAYER_COLOR_OPTIONS := ["black", "red", "blue", "green", "purple", "pink", "cyan"]
 
+# ゲーム進行の調整値。試合の各層はここを参照する（main に散らさない）。
+const HAND_SIZE := 8
+const KILL_DISTANCE := 5.0
+const KILL_CENTER_DOT := 0.985
+const STUN_SECONDS := 10.0
+const POST_STUN_BUFF_SECONDS := 5.0
+const KILL_COOLDOWN_SECONDS := 10.0
+const ABILITY_COOLDOWN_SECONDS := 10.0
+const EXCHANGE_HOLD_SECONDS := 5.0
+const EXCHANGE_CARD_COUNT := 3
+const EXCHANGE_CARD_SPACING := 1.05
+const MAP_RESPAWN_DISTANCE := 64.0
+const FALL_RESPAWN_Y := -8.0
+const COMPUTER_PAIR_ACTION_MIN_SECONDS := 2.0
+const COMPUTER_PAIR_ACTION_MAX_SECONDS := 5.0
+const COMPUTER_PAIR_ACTION_CHANCE := 0.35
+const NETWORK_SNAPSHOT_INTERVAL := 0.1
+
 var map_name := "Mansion"
 var computer_count := 3
 var deck_size := 53

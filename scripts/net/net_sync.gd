@@ -54,7 +54,7 @@ func execute_player_action(actor: Node3D, action: String, value: int, target_nam
 func can_server_kill(actor: Node3D, target: Node3D) -> bool:
 	return (
 		actor != target
-		and actor.global_position.distance_to(target.global_position) <= _game.KILL_DISTANCE + 0.5
+		and actor.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE + 0.5
 		and not actor.is_stunned()
 		and not target.is_stunned()
 		and _game._get_kill_cooldown_left(actor) <= 0.0
@@ -71,7 +71,7 @@ func can_server_scythe(actor: Node3D, target: Node3D) -> bool:
 	return (
 		target != null
 		and actor != target
-		and actor.global_position.distance_to(target.global_position) <= _game.KILL_DISTANCE + 0.5
+		and actor.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE + 0.5
 		and not target.is_stunned()
 		and _game._get_kill_cooldown_left(actor) <= 0.0
 	)
@@ -80,7 +80,7 @@ func can_server_scythe(actor: Node3D, target: Node3D) -> bool:
 func can_server_change(actor: Node3D, target: Node3D) -> bool:
 	return (
 		actor != target
-		and actor.global_position.distance_to(target.global_position) <= _game.KILL_DISTANCE + 0.5
+		and actor.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE + 0.5
 		and not actor.is_stunned()
 		and not actor.hand.is_empty()
 		and not target.hand.is_empty()
@@ -91,7 +91,7 @@ func can_server_change(actor: Node3D, target: Node3D) -> bool:
 func can_server_coin_change(actor: Node3D, target: Node3D) -> bool:
 	return (
 		actor != target
-		and actor.global_position.distance_to(target.global_position) <= _game.KILL_DISTANCE + 0.5
+		and actor.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE + 0.5
 		and not actor.is_stunned()
 		and not target.is_stunned()
 		and not actor.hand.is_empty()

@@ -16,7 +16,7 @@ func _init(game: Node, view: CanvasLayer) -> void:
 ## 毎フレーム前半: 残り時間・スタン・情報・露出・状態枠。
 func refresh_status() -> void:
 	_view.set_time_left(_game._time_left)
-	_view.set_stun_status(_game.player.get_stun_time_left(), _game.STUN_SECONDS)
+	_view.set_stun_status(_game.player.get_stun_time_left(), GameConfig.STUN_SECONDS)
 	_update_information()
 	_update_exposure()
 	_update_edge_status()
@@ -26,8 +26,8 @@ func refresh_status() -> void:
 func refresh_actions() -> void:
 	_view.set_kill_available(_game._player_kill_target != null)
 	_view.set_change_available(_game._player_change_target != null or _game._player_exchange_target != null)
-	_view.set_kill_cooldown(_game._get_kill_cooldown_left(_game.player), _game.KILL_COOLDOWN_SECONDS)
-	_view.set_ability_cooldown(_game._get_ability_cooldown_left(_game.player), _game.ABILITY_COOLDOWN_SECONDS)
+	_view.set_kill_cooldown(_game._get_kill_cooldown_left(_game.player), GameConfig.KILL_COOLDOWN_SECONDS)
+	_view.set_ability_cooldown(_game._get_ability_cooldown_left(_game.player), GameConfig.ABILITY_COOLDOWN_SECONDS)
 
 
 func _update_information() -> void:

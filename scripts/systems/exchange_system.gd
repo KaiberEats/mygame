@@ -29,7 +29,7 @@ func setup_stations() -> void:
 		pedestal.material_override = pedestal_material
 		station.add_child(pedestal)
 
-		for card_index in _game.EXCHANGE_CARD_COUNT:
+		for card_index in GameConfig.EXCHANGE_CARD_COUNT:
 			var hidden_card_mesh := BoxMesh.new()
 			hidden_card_mesh.size = Vector3(0.85, 0.12, 1.35)
 			var hidden_card := MeshInstance3D.new()
@@ -66,13 +66,13 @@ func setup_stations() -> void:
 
 func deal_cards() -> void:
 	for station in stations():
-		var station_cards: Array[Dictionary] = _game.deck.draw_cards(_game.EXCHANGE_CARD_COUNT)
+		var station_cards: Array[Dictionary] = _game.deck.draw_cards(GameConfig.EXCHANGE_CARD_COUNT)
 		set_station_cards(station, station_cards)
 
 
 func card_local_position(card_index: int) -> Vector3:
-	var centered_index: float = float(card_index) - float(_game.EXCHANGE_CARD_COUNT - 1) * 0.5
-	return Vector3(centered_index * _game.EXCHANGE_CARD_SPACING, 1.56, 0.0)
+	var centered_index: float = float(card_index) - float(GameConfig.EXCHANGE_CARD_COUNT - 1) * 0.5
+	return Vector3(centered_index * GameConfig.EXCHANGE_CARD_SPACING, 1.56, 0.0)
 
 
 func station_cards(station: StaticBody3D) -> Array[Dictionary]:
@@ -97,7 +97,7 @@ func set_station_cards(station: StaticBody3D, cards: Array) -> void:
 		station.remove_meta("card")
 	else:
 		station.set_meta("card", typed_cards[0])
-	for card_index in _game.EXCHANGE_CARD_COUNT:
+	for card_index in GameConfig.EXCHANGE_CARD_COUNT:
 		var mesh := station.get_node_or_null("CardSlot_%d" % card_index) as MeshInstance3D
 		var label := station.get_node_or_null("CardLabel_%d" % card_index) as Label3D
 		var has_card: bool = card_index < typed_cards.size()
@@ -120,7 +120,7 @@ func find_aimed_station() -> StaticBody3D:
 	if _game.player.is_stunned() or _game.player.hand.is_empty() or _game.game_hud.is_hand_editor_open():
 		return null
 	var best_station: StaticBody3D = null
-	var best_dot: float = _game.KILL_CENTER_DOT
+	var best_dot: float = GameConfig.KILL_CENTER_DOT
 	for station_node in get_tree().get_nodes_in_group("exchange_stations"):
 		var station := station_node as StaticBody3D
 		if station == null:
@@ -129,7 +129,7 @@ func find_aimed_station() -> StaticBody3D:
 		for card_index in found_cards.size():
 			var card_position := station.to_global(card_local_position(card_index))
 			var to_card: Vector3 = card_position - _game.player.get_view_origin()
-			if to_card.length() > _game.KILL_DISTANCE + 1.5:
+			if to_card.length() > GameConfig.KILL_DISTANCE + 1.5:
 				continue
 			var center_dot: float = _game.player.get_view_forward().dot(to_card.normalized())
 			if center_dot > best_dot:
@@ -157,9 +157,9 @@ func update_hold(delta: float) -> void:
 		_game._exchange_hold_target = _game._player_exchange_target
 		_game._exchange_hold_card_index = _game._player_exchange_card_index
 		_game._exchange_hold_time = 0.0
-	_game._exchange_hold_time = minf(_game._exchange_hold_time + delta, _game.EXCHANGE_HOLD_SECONDS)
-	_game.game_hud.set_exchange_progress(_game._exchange_hold_time / _game.EXCHANGE_HOLD_SECONDS, true)
-	if _game._exchange_hold_time >= _game.EXCHANGE_HOLD_SECONDS:
+	_game._exchange_hold_time = minf(_game._exchange_hold_time + delta, GameConfig.EXCHANGE_HOLD_SECONDS)
+	_game.game_hud.set_exchange_progress(_game._exchange_hold_time / GameConfig.EXCHANGE_HOLD_SECONDS, true)
+	if _game._exchange_hold_time >= GameConfig.EXCHANGE_HOLD_SECONDS:
 		var station_index := stations().find(_game._exchange_hold_target)
 		if _game._net.is_game_authority():
 			exchange_with_station(_game.player, station_index, _game._exchange_hold_card_index)

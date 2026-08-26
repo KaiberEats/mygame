@@ -4,22 +4,6 @@ extends Node3D
 ## 各 System/コンポーネントを構築・結線し、_process で tick を発火する。
 ## ネットの @rpc 入口(NodePath一致のため)を持つ。ルール/状態/表示は各層が担う。
 
-const HAND_SIZE := 8
-const KILL_DISTANCE := 5.0
-const KILL_CENTER_DOT := 0.985
-const STUN_SECONDS := 10.0
-const POST_STUN_BUFF_SECONDS := 5.0
-const KILL_COOLDOWN_SECONDS := 10.0
-const ABILITY_COOLDOWN_SECONDS := 10.0
-const EXCHANGE_HOLD_SECONDS := 5.0
-const EXCHANGE_CARD_COUNT := 3
-const EXCHANGE_CARD_SPACING := 1.05
-const MAP_RESPAWN_DISTANCE := 64.0
-const FALL_RESPAWN_Y := -8.0
-const COMPUTER_PAIR_ACTION_MIN_SECONDS := 2.0
-const COMPUTER_PAIR_ACTION_MAX_SECONDS := 5.0
-const COMPUTER_PAIR_ACTION_CHANCE := 0.35
-const NETWORK_SNAPSHOT_INTERVAL := 0.1
 const HOMING_MISSILE_SCENE := preload("res://scenes/entities/HomingMissile.tscn")
 const COMPUTER_SCENE := preload("res://scenes/entities/Computer.tscn")
 const PLAYER_SCENE := preload("res://scenes/entities/Player.tscn")
@@ -128,9 +112,9 @@ func _ready() -> void:
 	_exchange.setup_stations()
 	if _net.is_game_authority():
 		deck.reset_and_shuffle(GameConfig.deck_size)
-		deck.ensure_joker_in_next_draws(HAND_SIZE * _participants.size())
+		deck.ensure_joker_in_next_draws(GameConfig.HAND_SIZE * _participants.size())
 		for participant in _participants:
-			participant.set_hand(deck.draw_cards(HAND_SIZE))
+			participant.set_hand(deck.draw_cards(GameConfig.HAND_SIZE))
 		_exchange.deal_cards()
 	elif NetworkManager.is_online:
 		_request_full_state.rpc_id(1)
@@ -175,14 +159,14 @@ func _process(delta: float) -> void:
 	_try_computer_free_changes()
 	_network_snapshot_time_left -= delta
 	if NetworkManager.is_online and _network_snapshot_time_left <= 0.0:
-		_network_snapshot_time_left = NETWORK_SNAPSHOT_INTERVAL
+		_network_snapshot_time_left = GameConfig.NETWORK_SNAPSHOT_INTERVAL
 		_receive_game_state.rpc(_codec.build_state(self))
 	if _time_left <= 0.0 or _flow.has_empty_hand():
 		_flow.finish_game()
 
 
 func _find_aimed_target(attacker: Node3D, for_change: bool) -> Node3D:
-	return _targeting.find_aimed(attacker, _participants, _change_killers, for_change, KILL_DISTANCE, KILL_CENTER_DOT)
+	return _targeting.find_aimed(attacker, _participants, _change_killers, for_change, GameConfig.KILL_DISTANCE, GameConfig.KILL_CENTER_DOT)
 
 
 func _on_hand_reordered(cards: Array[Dictionary]) -> void:
@@ -197,7 +181,7 @@ func _on_player_hand_changed(cards: Array[Dictionary]) -> void:
 
 
 func _refill_hand(participant: Node3D) -> void:
-	var missing_count := maxi(HAND_SIZE - participant.hand.size(), 0)
+	var missing_count := maxi(GameConfig.HAND_SIZE - participant.hand.size(), 0)
 	if missing_count <= 0:
 		return
 	var cards: Array[Dictionary] = deck.draw_cards(missing_count)
@@ -213,7 +197,7 @@ func _find_nearest_participant(participant: Node3D) -> Node3D:
 
 
 func _find_visible_missile_target(shooter: Node3D) -> Node3D:
-	return _targeting.find_visible_missile(shooter, _participants, player, KILL_CENTER_DOT)
+	return _targeting.find_visible_missile(shooter, _participants, player, GameConfig.KILL_CENTER_DOT)
 
 
 func _has_line_of_sight(shooter: Node3D, target: Node3D) -> bool:
@@ -251,7 +235,7 @@ func _try_computer_free_changes() -> void:
 		if not _is_computer(participant) or participant.is_stunned() or not _status_system.has_free_change(participant):
 			continue
 		var target := _find_nearest_participant(participant)
-		if target != null and participant.global_position.distance_to(target.global_position) <= KILL_DISTANCE:
+		if target != null and participant.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE:
 			_combat.perform_change(participant, target)
 
 
@@ -365,7 +349,7 @@ func _request_exchange(station_index: int, card_index: int) -> void:
 	var stations := _exchange.stations()
 	if actor == null or station_index < 0 or station_index >= stations.size():
 		return
-	if actor.global_position.distance_to(stations[station_index].global_position) <= KILL_DISTANCE + 1.5:
+	if actor.global_position.distance_to(stations[station_index].global_position) <= GameConfig.KILL_DISTANCE + 1.5:
 		_exchange.exchange_with_station(actor, station_index, card_index)
 
 

@@ -122,11 +122,11 @@ func update_post_stun_buffs() -> void:
 			var effects: Dictionary = _game._status(participant).data
 			effects["invincible_until"] = maxf(
 				float(effects.get("invincible_until", 0.0)),
-				now + _game.POST_STUN_BUFF_SECONDS
+				now + GameConfig.POST_STUN_BUFF_SECONDS
 			)
 			effects["recovery_speed_until"] = maxf(
 				float(effects.get("recovery_speed_until", 0.0)),
-				now + _game.POST_STUN_BUFF_SECONDS
+				now + GameConfig.POST_STUN_BUFF_SECONDS
 			)
 			participant.set_gold_outline(true)
 			refresh_speed_multiplier(participant)
