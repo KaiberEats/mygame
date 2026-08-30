@@ -16,19 +16,22 @@ const PLAYER_SCENE := preload("res://scenes/entities/Player.tscn")
 @onready var game_hud: CanvasLayer = $UI/GameHud
 @onready var _participants_root: Node3D = $Participants
 
+# System 群は Match.tscn の Systems ノードに配置。main は参照して結線・tick 発火する。
+@onready var _exchange: ExchangeSystem = $Systems/ExchangeSystem
+@onready var _item_system: ItemSystem = $Systems/ItemSystem
+@onready var _combat: CombatSystem = $Systems/CombatSystem
+@onready var _ability: AbilitySystem = $Systems/AbilitySystem
+@onready var _net: NetSync = $Systems/NetSync
+@onready var _flow: GameFlow = $Systems/GameFlow
+@onready var _status_system: StatusSystem = $Systems/StatusSystem
+@onready var _game_state: GameStateManager = $Systems/GameStateManager
+@onready var _controls: PlayerController = $Systems/PlayerController
+
+# シーンに置けない RefCounted はここで生成する。
 var _targeting := TargetingService.new()
-var _exchange: ExchangeSystem = null
-var _item_system: ItemSystem = null
-var _combat: CombatSystem = null
-var _ability: AbilitySystem = null
 var _codec := GameStateCodec.new()
-var _net: NetSync = null
-var _flow: GameFlow = null
 var _hud: HudPresenter = null
 var _participants_mgr: Participants = null
-var _status_system: StatusSystem = null
-var _controls: PlayerController = null
-var _game_state: GameStateManager = null
 var _net_gateway: NetGateway = null
 
 # 参加者レジストリへのショートハンド（@rpc 入口・構築で使う）。
@@ -44,25 +47,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().paused = false
 	randomize()
-	# --- 構築 ---
-	_exchange = ExchangeSystem.new()
-	_register(_exchange, "ExchangeSystem")
-	_item_system = ItemSystem.new()
-	_register(_item_system, "ItemSystem")
-	_combat = CombatSystem.new()
-	_register(_combat, "CombatSystem")
-	_ability = AbilitySystem.new()
-	_register(_ability, "AbilitySystem")
-	_net = NetSync.new()
-	_register(_net, "NetSync")
-	_flow = GameFlow.new()
-	_register(_flow, "GameFlow")
-	_status_system = StatusSystem.new()
-	_register(_status_system, "StatusSystem")
-	_game_state = GameStateManager.new()
-	_register(_game_state, "GameStateManager")
-	_controls = PlayerController.new()
-	_register(_controls, "PlayerController")
+	# --- シーンに置けない RefCounted を生成 ---
 	_net_gateway = NetGateway.new()
 	_participants_mgr = Participants.new()
 	_hud = HudPresenter.new(game_hud, _participants_mgr, _game_state, _status_system, _controls)
@@ -83,15 +68,9 @@ func _ready() -> void:
 	_participants_mgr.local_player = _participants_root.get_node(^"Player")
 	_participants_mgr.remote_respawn_requested.connect(respawn_remote)
 
-	# --- メニュー / HUD シグナル ---
+	# メニュー/HUD の signal は Match.tscn で接続済み。実行時に決まる接続だけここで行う。
 	pause_menu.hide()
 	settings_menu.hide()
-	pause_menu.resume_requested.connect(_controls.resume_game)
-	pause_menu.settings_requested.connect(_controls.show_settings_menu)
-	pause_menu.tutorial_requested.connect(_controls.show_tutorial)
-	settings_menu.back_requested.connect(_controls.show_pause_menu)
-	game_hud.hand_reordered.connect(_on_hand_reordered)
-	game_hud.debug_return_requested.connect(_controls.force_return_to_waiting_room)
 	if not NetworkManager.peers_changed.is_connected(_participants_mgr.refresh_network_player_profiles):
 		NetworkManager.peers_changed.connect(_participants_mgr.refresh_network_player_profiles)
 
@@ -123,11 +102,6 @@ func _ready() -> void:
 	game_hud.set_time_left(_game_state.time_left)
 	_ability.reset_computer_pair_action_timer()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-
-
-func _register(system: Node, system_name: String) -> void:
-	system.name = system_name
-	add_child(system)
 
 
 func _process(delta: float) -> void:

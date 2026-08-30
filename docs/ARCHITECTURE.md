@@ -64,9 +64,9 @@ Match (Node3D, main.gd)              構築・結線・System の tick 発火・
 │    ├─ Player   (CharacterBody3D, Participant 継承)
 │    └─ Computer1..N (CharacterBody3D, Participant 継承)
 ├─ ExchangeStation × 2               ExchangeStation.tscn を ExchangeSystem が生成・配置
-├─ (System 群は main が add_child)    ExchangeSystem / ItemSystem / CombatSystem / AbilitySystem /
-│                                     NetSync(固定名) / GameFlow / StatusSystem / GameStateManager /
-│                                     PlayerController
+├─ Systems (Node)                    System 群をシーンに配置（main が @onready で参照・結線・tick）
+│    ├─ CombatSystem / AbilitySystem / ItemSystem / ExchangeSystem / StatusSystem
+│    ├─ GameFlow / GameStateManager / NetSync / PlayerController
 ├─ Services (Node)
 │    └─ Deck
 └─ UI (CanvasLayer)
@@ -74,6 +74,11 @@ Match (Node3D, main.gd)              構築・結線・System の tick 発火・
      ├─ PauseMenu
      └─ Settings
 ```
+
+- System 群と `GameStateManager` は `Match.tscn` に子ノードとして配置し、`main` は `@onready` で参照する
+  （`main` が `new()` で生成しない）。依存注入は `main._ready` が明示的に行う。
+- メニュー/HUD の signal（ポーズ/設定/チュートリアル/並べ替え等）は `Match.tscn` の接続で結線する。
+  実行時に相手が決まる接続（`peers_changed` / ローカルプレイヤーの `hand_changed` / リスポーン）だけコードで行う。
 
 各参加者（Player / Computer）は共通基底 `Participant`（`CharacterBody3D` 継承）を継承し、内部に状態
 コンポーネントを自己 attach する：
@@ -91,8 +96,8 @@ Player (CharacterBody3D → Participant, player.gd)
   `get_display_name()` を提供し、コンポーネントを `_ready` で自己 attach する。
 - マップは子シーンに分離し、`main` はマップを参照しない（複数マップに対応）。交換ステーションは
   `ExchangeStation.tscn` を `ExchangeSystem` が実行時に生成・配置する。
-- `Participants` / `Services` / `UI` の器を設け、ノードパスを安定させる。System 群と `GameStateManager` は
-  `main` が固定名で add_child する。`NetGateway` / `HudPresenter` / `Participants` は RefCounted で `main` が保持する。
+- `Systems` / `Participants` / `Services` / `UI` の器を設け、ノードパスを安定させる。`NetGateway` /
+  `HudPresenter` / `Participants` は RefCounted のためシーンに置けず、`main` が生成して保持する。
 
 ## スクリプトと型
 

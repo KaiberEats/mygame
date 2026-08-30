@@ -9,6 +9,15 @@
 [ext_resource type="PackedScene" path="res://scenes/entities/Computer.tscn" id="6_computer"]
 [ext_resource type="PackedScene" path="res://scenes/ui/Settings.tscn" id="7_settings"]
 [ext_resource type="Script" uid="uid://b3271108yrwbi" path="res://scripts/map/mansion_builder.gd" id="8_mansion"]
+[ext_resource type="Script" uid="uid://bkt2bphs11y3c" path="res://scripts/systems/combat_system.gd" id="9_combat"]
+[ext_resource type="Script" uid="uid://bi5xjeiwxwn0c" path="res://scripts/systems/ability_system.gd" id="10_ability"]
+[ext_resource type="Script" uid="uid://dtu0s8gjoth5m" path="res://scripts/systems/item_system.gd" id="11_item"]
+[ext_resource type="Script" uid="uid://b3rpcladlshms" path="res://scripts/systems/exchange_system.gd" id="12_exchange"]
+[ext_resource type="Script" uid="uid://j2cpr654d13o" path="res://scripts/systems/status_system.gd" id="13_status"]
+[ext_resource type="Script" uid="uid://cx2j8u722gfrf" path="res://scripts/systems/game_flow.gd" id="14_flow"]
+[ext_resource type="Script" uid="uid://b4i4puq0texfl" path="res://scripts/systems/game_state_manager.gd" id="15_gamestate"]
+[ext_resource type="Script" uid="uid://b6jj0ot8kpj6j" path="res://scripts/net/net_sync.gd" id="16_netsync"]
+[ext_resource type="Script" uid="uid://cj8o1sp7bvliu" path="res://scripts/ui/player_controller.gd" id="17_controls"]
 
 [sub_resource type="Environment" id="Environment_mansion"]
 background_mode = 1
@@ -1009,3 +1018,39 @@ visible = false
 
 [node name="Settings" parent="UI" unique_id=490687214 instance=ExtResource("7_settings")]
 visible = false
+
+[node name="Systems" type="Node" parent="."]
+
+[node name="CombatSystem" type="Node" parent="Systems"]
+script = ExtResource("9_combat")
+
+[node name="AbilitySystem" type="Node" parent="Systems"]
+script = ExtResource("10_ability")
+
+[node name="ItemSystem" type="Node" parent="Systems"]
+script = ExtResource("11_item")
+
+[node name="ExchangeSystem" type="Node" parent="Systems"]
+script = ExtResource("12_exchange")
+
+[node name="StatusSystem" type="Node" parent="Systems"]
+script = ExtResource("13_status")
+
+[node name="GameFlow" type="Node" parent="Systems"]
+script = ExtResource("14_flow")
+
+[node name="GameStateManager" type="Node" parent="Systems"]
+script = ExtResource("15_gamestate")
+
+[node name="NetSync" type="Node" parent="Systems"]
+script = ExtResource("16_netsync")
+
+[node name="PlayerController" type="Node" parent="Systems"]
+script = ExtResource("17_controls")
+
+[connection signal="resume_requested" from="UI/PauseMenu" to="Systems/PlayerController" method="resume_game"]
+[connection signal="settings_requested" from="UI/PauseMenu" to="Systems/PlayerController" method="show_settings_menu"]
+[connection signal="tutorial_requested" from="UI/PauseMenu" to="Systems/PlayerController" method="show_tutorial"]
+[connection signal="back_requested" from="UI/Settings" to="Systems/PlayerController" method="show_pause_menu"]
+[connection signal="hand_reordered" from="UI/GameHud" to="." method="_on_hand_reordered"]
+[connection signal="debug_return_requested" from="UI/GameHud" to="Systems/PlayerController" method="force_return_to_waiting_room"]
