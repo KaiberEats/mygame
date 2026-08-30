@@ -81,7 +81,7 @@ func _ready() -> void:
 	_combat.setup(_participants_mgr, _status_system, _item_system, _targeting, _net_gateway, game_hud)
 	_ability.setup(_participants_mgr, _combat, _status_system, _item_system, deck, _net_gateway, game_hud)
 	_net.setup(self)
-	_flow.setup(self)
+	_flow.setup(_participants_mgr, _game_state, _net_gateway, game_hud, self)
 	_status_system.setup(_participants_mgr, _item_system)
 	_net_gateway.setup(self)
 	_controls.setup(self)

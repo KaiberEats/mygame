@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[node name="Results" type="CanvasLayer" unique_id=1104745732]
+process_mode = 3
+
+[node name="Background" type="ColorRect" parent="." unique_id=1998743848]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.025, 0.02, 0.035, 0.98)
+
+[node name="Center" type="CenterContainer" parent="." unique_id=2061972967]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Content" type="VBoxContainer" parent="Center" unique_id=897021111]
+custom_minimum_size = Vector2(650, 0)
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Center/Content" unique_id=701257059]
+layout_mode = 2
+theme_override_font_sizes/font_size = 52
+horizontal_alignment = 1
+
+[node name="ReturnButton" type="Button" parent="Center/Content" unique_id=1522763037]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
