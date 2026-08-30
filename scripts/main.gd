@@ -34,6 +34,7 @@ var _participants_mgr: Participants = null
 var _status_system: StatusSystem = null
 var _controls: PlayerController = null
 var _game_state: GameStateManager = null
+var _net_gateway: NetGateway = null
 var _exchange_hold_time := 0.0
 var _exchange_hold_target: StaticBody3D = null
 var _exchange_hold_card_index := -1
@@ -86,6 +87,8 @@ func _ready() -> void:
 	_game_state = GameStateManager.new()
 	_game_state.name = "GameStateManager"
 	add_child(_game_state)
+	_net_gateway = NetGateway.new()
+	_net_gateway.setup(self)
 	_hud = HudPresenter.new(self, game_hud)
 	_participants_mgr = Participants.new()
 	_participants_mgr.setup(_participants_root, _net, PLAYER_SCENE, COMPUTER_SCENE)
