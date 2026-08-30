@@ -2,71 +2,51 @@ class_name ExchangeSystem
 extends Node
 
 ## 交換ステーション（手札の最後のカードを場のカードと交換）の生成・照準・実行。
-## RPC と通知の発火は _game（match）側のヘルパーを経由する。
+## ローカルの長押し進行(hold)を本 System が所有。通知/送信は NetGateway 経由。
 
-var _game: Node
+const EXCHANGE_STATION_SCENE := preload("res://scenes/entities/ExchangeStation.tscn")
+
+var _hold_time := 0.0
+var _hold_target: StaticBody3D = null
+var _hold_card_index := -1
+var _locked_until_release := false
+var _aimed_station: StaticBody3D = null
+var _aimed_card_index := -1
+
+var _participants: Participants
+var _deck: Node
+var _net: NetSync
+var _net_gateway: NetGateway
+var _game_hud: CanvasLayer
+var _world: Node
 
 
-func setup(game: Node) -> void:
-	_game = game
+func setup(participants: Participants, deck: Node, net: NetSync, net_gateway: NetGateway,
+		game_hud: CanvasLayer, world: Node) -> void:
+	_participants = participants
+	_deck = deck
+	_net = net
+	_net_gateway = net_gateway
+	_game_hud = game_hud
+	_world = world
 
 
 func setup_stations() -> void:
 	for station_position in [Vector3(0.0, 0.0, -40.0), Vector3(0.0, 0.0, 40.0)]:
-		var station := StaticBody3D.new()
-		station.name = "ExchangeStation"
+		var station: StaticBody3D = EXCHANGE_STATION_SCENE.instantiate()
 		station.position = station_position
-		station.add_to_group("exchange_stations")
-		_game.add_child(station)
-
-		var pedestal_mesh := BoxMesh.new()
-		pedestal_mesh.size = Vector3(3.0, 1.5, 3.0)
-		var pedestal := MeshInstance3D.new()
-		pedestal.position.y = 0.75
-		pedestal.mesh = pedestal_mesh
-		var pedestal_material := StandardMaterial3D.new()
-		pedestal_material.albedo_color = Color(0.16, 0.09, 0.035)
-		pedestal.material_override = pedestal_material
-		station.add_child(pedestal)
-
-		for card_index in GameConfig.EXCHANGE_CARD_COUNT:
-			var hidden_card_mesh := BoxMesh.new()
-			hidden_card_mesh.size = Vector3(0.85, 0.12, 1.35)
-			var hidden_card := MeshInstance3D.new()
-			hidden_card.name = "CardSlot_%d" % card_index
-			hidden_card.position = card_local_position(card_index)
-			hidden_card.mesh = hidden_card_mesh
-			var card_material := StandardMaterial3D.new()
-			card_material.albedo_color = Color(0.04, 0.04, 0.05)
-			card_material.emission_enabled = true
-			card_material.emission = Color(0.28, 0.18, 0.04)
-			hidden_card.material_override = card_material
-			station.add_child(hidden_card)
-
-			var card_label := Label3D.new()
-			card_label.name = "CardLabel_%d" % card_index
-			card_label.position = hidden_card.position + Vector3(0.0, 0.09, 0.0)
-			card_label.rotation_degrees.x = -90.0
-			if station_position.z > 0.0:
-				card_label.rotation_degrees.y = 180.0
-			card_label.font_size = 42
-			card_label.modulate = Color.WHITE
-			card_label.outline_size = 8
-			card_label.outline_modulate = Color.BLACK
-			card_label.text = "?"
-			station.add_child(card_label)
-
-		var shape := BoxShape3D.new()
-		shape.size = Vector3(3.0, 1.5, 3.0)
-		var collision := CollisionShape3D.new()
-		collision.position.y = 0.75
-		collision.shape = shape
-		station.add_child(collision)
+		if station_position.z > 0.0:
+			# 中央側から文字が読めるよう、対面側のステーションはラベルだけ反転させる。
+			for card_index in GameConfig.EXCHANGE_CARD_COUNT:
+				var label := station.get_node_or_null("CardLabel_%d" % card_index) as Label3D
+				if label != null:
+					label.rotation_degrees.y = 180.0
+		_world.add_child(station)
 
 
 func deal_cards() -> void:
 	for station in stations():
-		var station_cards: Array[Dictionary] = _game.deck.draw_cards(GameConfig.EXCHANGE_CARD_COUNT)
+		var station_cards: Array[Dictionary] = _deck.draw_cards(GameConfig.EXCHANGE_CARD_COUNT)
 		set_station_cards(station, station_cards)
 
 
@@ -116,8 +96,10 @@ func set_station_cards(station: StaticBody3D, cards: Array) -> void:
 
 
 func find_aimed_station() -> StaticBody3D:
-	_game._player_exchange_card_index = -1
-	if _game.player.is_stunned() or _game.player.hand.is_empty() or _game.game_hud.is_hand_editor_open():
+	_aimed_card_index = -1
+	_aimed_station = null
+	var local_player := _participants.local_player
+	if local_player.is_stunned() or local_player.hand.is_empty() or _game_hud.is_hand_editor_open():
 		return null
 	var best_station: StaticBody3D = null
 	var best_dot: float = GameConfig.KILL_CENTER_DOT
@@ -128,47 +110,48 @@ func find_aimed_station() -> StaticBody3D:
 		var found_cards := station_cards(station)
 		for card_index in found_cards.size():
 			var card_position := station.to_global(card_local_position(card_index))
-			var to_card: Vector3 = card_position - _game.player.get_view_origin()
+			var to_card: Vector3 = card_position - local_player.get_view_origin()
 			if to_card.length() > GameConfig.KILL_DISTANCE + 1.5:
 				continue
-			var center_dot: float = _game.player.get_view_forward().dot(to_card.normalized())
+			var center_dot: float = local_player.get_view_forward().dot(to_card.normalized())
 			if center_dot > best_dot:
 				best_dot = center_dot
 				best_station = station
-				_game._player_exchange_card_index = card_index
+				_aimed_card_index = card_index
+	_aimed_station = best_station
 	return best_station
 
 
 func update_hold(delta: float) -> void:
 	var is_pressed := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	if _game._exchange_locked_until_release:
+	if _locked_until_release:
 		if not is_pressed:
-			_game._exchange_locked_until_release = false
+			_locked_until_release = false
 		return
 
-	if not is_pressed or _game._player_exchange_target == null:
-		_game._exchange_hold_time = 0.0
-		_game._exchange_hold_target = null
-		_game._exchange_hold_card_index = -1
-		_game.game_hud.set_exchange_progress(0.0, false)
+	if not is_pressed or _aimed_station == null:
+		_hold_time = 0.0
+		_hold_target = null
+		_hold_card_index = -1
+		_game_hud.set_exchange_progress(0.0, false)
 		return
 
-	if _game._exchange_hold_target != _game._player_exchange_target or _game._exchange_hold_card_index != _game._player_exchange_card_index:
-		_game._exchange_hold_target = _game._player_exchange_target
-		_game._exchange_hold_card_index = _game._player_exchange_card_index
-		_game._exchange_hold_time = 0.0
-	_game._exchange_hold_time = minf(_game._exchange_hold_time + delta, GameConfig.EXCHANGE_HOLD_SECONDS)
-	_game.game_hud.set_exchange_progress(_game._exchange_hold_time / GameConfig.EXCHANGE_HOLD_SECONDS, true)
-	if _game._exchange_hold_time >= GameConfig.EXCHANGE_HOLD_SECONDS:
-		var station_index := stations().find(_game._exchange_hold_target)
-		if _game._net.is_game_authority():
-			exchange_with_station(_game.player, station_index, _game._exchange_hold_card_index)
+	if _hold_target != _aimed_station or _hold_card_index != _aimed_card_index:
+		_hold_target = _aimed_station
+		_hold_card_index = _aimed_card_index
+		_hold_time = 0.0
+	_hold_time = minf(_hold_time + delta, GameConfig.EXCHANGE_HOLD_SECONDS)
+	_game_hud.set_exchange_progress(_hold_time / GameConfig.EXCHANGE_HOLD_SECONDS, true)
+	if _hold_time >= GameConfig.EXCHANGE_HOLD_SECONDS:
+		var station_index := stations().find(_hold_target)
+		if _net.is_game_authority():
+			exchange_with_station(_participants.local_player, station_index, _hold_card_index)
 		else:
-			_game.request_exchange_remote(station_index, _game._exchange_hold_card_index)
-		_game._exchange_hold_time = 0.0
-		_game._exchange_hold_target = null
-		_game._exchange_hold_card_index = -1
-		_game._exchange_locked_until_release = true
+			_net_gateway.request_exchange(station_index, _hold_card_index)
+		_hold_time = 0.0
+		_hold_target = null
+		_hold_card_index = -1
+		_locked_until_release = true
 
 
 func exchange_with_station(participant: Node3D, station_index: int, card_index: int) -> void:
@@ -183,15 +166,15 @@ func exchange_with_station(participant: Node3D, station_index: int, card_index: 
 	var hand_index := hand.size() - 1
 	var player_card: Dictionary = hand[hand_index]
 	if player_card.get("suit", "") == "joker":
-		_game.notify_participant(participant, GameConfig.text("joker_exchange"))
+		_net_gateway.notify(participant, GameConfig.text("joker_exchange"))
 		return
 	var station_card: Dictionary = found_cards[card_index]
 	hand[hand_index] = station_card
 	found_cards[card_index] = player_card
 	set_station_cards(station, found_cards)
 	participant.set_hand(hand, true)
-	_game._show_change_preview_for_participant(participant, player_card, station_card)
-	_game.notify_exchange_complete(participant)
+	_net_gateway.show_change_preview(participant, player_card, station_card)
+	_net_gateway.notify_exchange_complete(participant)
 
 
 func stations() -> Array[StaticBody3D]:

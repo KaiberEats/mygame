@@ -34,12 +34,7 @@ var _status_system: StatusSystem = null
 var _controls: PlayerController = null
 var _game_state: GameStateManager = null
 var _net_gateway: NetGateway = null
-var _exchange_hold_time := 0.0
-var _exchange_hold_target: StaticBody3D = null
-var _exchange_hold_card_index := -1
-var _exchange_locked_until_release := false
 var _tutorial_overlay: Control = null
-var _player_exchange_card_index := -1
 
 # System 移行中の互換委譲（移行完了後に撤去）。
 var player: Node3D:
@@ -81,7 +76,7 @@ func _ready() -> void:
 	_participants_mgr = Participants.new()
 
 	# --- 結線（依存注入）---
-	_exchange.setup(self)
+	_exchange.setup(_participants_mgr, deck, _net, _net_gateway, game_hud, self)
 	_item_system.setup(self)
 	_combat.setup(_participants_mgr, _status_system, _item_system, _targeting, _net_gateway, game_hud)
 	_ability.setup(self)

@@ -1,0 +1,78 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_b1scj"]
+albedo_color = Color(0.16, 0.09, 0.035, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_0fyyu"]
+size = Vector3(3, 1.5, 3)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qu3l1"]
+albedo_color = Color(0.04, 0.04, 0.05, 1)
+emission_enabled = true
+emission = Color(0.28, 0.18, 0.04, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_0247c"]
+size = Vector3(0.85, 0.12, 1.35)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ywjf7"]
+albedo_color = Color(0.04, 0.04, 0.05, 1)
+emission_enabled = true
+emission = Color(0.28, 0.18, 0.04, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_noyk5"]
+size = Vector3(0.85, 0.12, 1.35)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ceux7"]
+albedo_color = Color(0.04, 0.04, 0.05, 1)
+emission_enabled = true
+emission = Color(0.28, 0.18, 0.04, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_t05ge"]
+size = Vector3(0.85, 0.12, 1.35)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1d1mi"]
+size = Vector3(3, 1.5, 3)
+
+[node name="ExchangeStation" type="StaticBody3D" unique_id=269991193 groups=["exchange_stations"]]
+
+[node name="Pedestal" type="MeshInstance3D" parent="." unique_id=2028021343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+material_override = SubResource("StandardMaterial3D_b1scj")
+mesh = SubResource("BoxMesh_0fyyu")
+
+[node name="CardSlot_0" type="MeshInstance3D" parent="." unique_id=974130907]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 1.56, 0)
+material_override = SubResource("StandardMaterial3D_qu3l1")
+mesh = SubResource("BoxMesh_0247c")
+
+[node name="CardLabel_0" type="Label3D" parent="." unique_id=355863199]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, -1.05, 1.65, 0)
+text = "?"
+font_size = 42
+outline_size = 8
+
+[node name="CardSlot_1" type="MeshInstance3D" parent="." unique_id=847990981]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.56, 0)
+material_override = SubResource("StandardMaterial3D_ywjf7")
+mesh = SubResource("BoxMesh_noyk5")
+
+[node name="CardLabel_1" type="Label3D" parent="." unique_id=767444940]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1.65, 0)
+text = "?"
+font_size = 42
+outline_size = 8
+
+[node name="CardSlot_2" type="MeshInstance3D" parent="." unique_id=860725996]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.05, 1.56, 0)
+material_override = SubResource("StandardMaterial3D_ceux7")
+mesh = SubResource("BoxMesh_t05ge")
+
+[node name="CardLabel_2" type="Label3D" parent="." unique_id=1199716845]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 1.05, 1.65, 0)
+text = "?"
+font_size = 42
+outline_size = 8
+
+[node name="Collision" type="CollisionShape3D" parent="." unique_id=1904781887]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("BoxShape3D_1d1mi")
