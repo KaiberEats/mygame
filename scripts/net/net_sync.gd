@@ -57,7 +57,7 @@ func can_server_kill(actor: Node3D, target: Node3D) -> bool:
 		and actor.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE + 0.5
 		and not actor.is_stunned()
 		and not target.is_stunned()
-		and _game._get_kill_cooldown_left(actor) <= 0.0
+		and actor.cooldown().kill_left(Clock.now()) <= 0.0
 		and actor.has_joker()
 	)
 
@@ -73,7 +73,7 @@ func can_server_scythe(actor: Node3D, target: Node3D) -> bool:
 		and actor != target
 		and actor.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE + 0.5
 		and not target.is_stunned()
-		and _game._get_kill_cooldown_left(actor) <= 0.0
+		and actor.cooldown().kill_left(Clock.now()) <= 0.0
 	)
 
 

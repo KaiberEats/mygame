@@ -34,8 +34,8 @@ func build_state(game: Node) -> Dictionary:
 			"stun": participant.get_stun_time_left(),
 			"pending_stun": 0.0,
 			"effects": effect_state,
-			"kill_cooldown": game._get_kill_cooldown_left(participant),
-			"ability_cooldown": game._get_ability_cooldown_left(participant),
+			"kill_cooldown": participant.cooldown().kill_left(Clock.now()),
+			"ability_cooldown": participant.cooldown().ability_left(Clock.now()),
 			"item": network_item_for(game, participant),
 		}
 	var station_cards: Array = []

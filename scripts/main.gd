@@ -20,7 +20,6 @@ const TUTORIAL_SCENE := preload("res://scenes/ui/Tutorial.tscn")
 var _player_kill_target: Node3D = null
 var _player_change_target: Node3D = null
 var _player_exchange_target: StaticBody3D = null
-var _change_killers: Dictionary = {}
 var _targeting := TargetingService.new()
 var _exchange: ExchangeSystem = null
 var _item_system: ItemSystem = null
@@ -42,13 +41,16 @@ var _exchange_locked_until_release := false
 var _tutorial_overlay: Control = null
 var _player_exchange_card_index := -1
 
-# 参加者レジストリへの委譲（System 移行中の互換。移行完了後に撤去）。
+# System 移行中の互換委譲（移行完了後に撤去）。
 var player: Node3D:
 	get:
 		return _participants_mgr.local_player
 var _participants: Array[Node3D]:
 	get:
 		return _participants_mgr.all
+var _change_killers: Dictionary:
+	get:
+		return _combat._change_killers
 
 
 func _ready() -> void:
@@ -81,7 +83,7 @@ func _ready() -> void:
 	# --- 結線（依存注入）---
 	_exchange.setup(self)
 	_item_system.setup(self)
-	_combat.setup(self)
+	_combat.setup(_participants_mgr, _status_system, _item_system, _targeting, _net_gateway, game_hud)
 	_ability.setup(self)
 	_net.setup(self)
 	_flow.setup(self)
@@ -173,10 +175,6 @@ func _process(delta: float) -> void:
 		_flow.finish_game()
 
 
-func _find_aimed_target(attacker: Node3D, for_change: bool) -> Node3D:
-	return _targeting.find_aimed(attacker, _participants, _change_killers, for_change, GameConfig.KILL_DISTANCE, GameConfig.KILL_CENTER_DOT)
-
-
 func _on_hand_reordered(cards: Array[Dictionary]) -> void:
 	if _net.is_game_authority():
 		player.set_hand(cards)
@@ -245,14 +243,6 @@ func _try_computer_free_changes() -> void:
 		var target := _find_nearest_participant(participant)
 		if target != null and participant.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE:
 			_combat.perform_change(participant, target)
-
-
-func _get_kill_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(participant.cooldown().kill_until) - Clock.now(), 0.0)
-
-
-func _get_ability_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(participant.cooldown().ability_until) - Clock.now(), 0.0)
 
 
 func respawn_remote(peer_id: int, participant_name: String, spawn_position: Vector3) -> void:

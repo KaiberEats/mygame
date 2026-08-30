@@ -20,7 +20,7 @@ func setup(game: Node) -> void:
 
 
 func try_use_pair(participant: Node3D, pair_slot: int) -> bool:
-	if _game._get_ability_cooldown_left(participant) > 0.0:
+	if participant.cooldown().ability_left(Clock.now()) > 0.0:
 		show_ability_not_ready(participant)
 		return false
 

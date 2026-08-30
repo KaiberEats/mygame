@@ -26,8 +26,8 @@ func refresh_status() -> void:
 func refresh_actions() -> void:
 	_view.set_kill_available(_game._player_kill_target != null)
 	_view.set_change_available(_game._player_change_target != null or _game._player_exchange_target != null)
-	_view.set_kill_cooldown(_game._get_kill_cooldown_left(_game.player), GameConfig.KILL_COOLDOWN_SECONDS)
-	_view.set_ability_cooldown(_game._get_ability_cooldown_left(_game.player), GameConfig.ABILITY_COOLDOWN_SECONDS)
+	_view.set_kill_cooldown(_game.player.cooldown().kill_left(Clock.now()), GameConfig.KILL_COOLDOWN_SECONDS)
+	_view.set_ability_cooldown(_game.player.cooldown().ability_left(Clock.now()), GameConfig.ABILITY_COOLDOWN_SECONDS)
 
 
 func _update_information() -> void:
