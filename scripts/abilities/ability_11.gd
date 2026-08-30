@@ -5,7 +5,7 @@ extends Ability
 
 func apply(ctx: AbilityContext) -> void:
 	var positions: Dictionary = {}
-	for target in ctx.game._participants:
+	for target in ctx.participants.all:
 		if target != ctx.caster:
 			positions[target] = target.global_position
 	ctx.ctx.caster.vision().map_reveal = {

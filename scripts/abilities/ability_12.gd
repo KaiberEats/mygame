@@ -5,5 +5,5 @@ extends Ability
 
 func apply(ctx: AbilityContext) -> void:
 	ctx.effects["barrier_charges"] = 2 if ctx.is_enhanced else 1
-	ctx.game._combat.set_barrier_visual(ctx.caster, true)
-	ctx.game._item_system.sync_player_slot()
+	ctx.combat.set_barrier_visual(ctx.caster, true)
+	ctx.item_system.sync_player_slot()

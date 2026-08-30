@@ -21,6 +21,7 @@ var _net: NetSync
 var _player_scene: PackedScene
 var _computer_scene: PackedScene
 var _spawn_positions: Dictionary = {}
+var _targeting := TargetingService.new()
 
 
 func setup(root: Node3D, net: NetSync, player_scene: PackedScene, computer_scene: PackedScene) -> void:
@@ -43,6 +44,10 @@ func by_name(participant_name: String) -> Node3D:
 		if participant.name == participant_name:
 			return participant
 	return null
+
+
+func nearest(participant: Node3D) -> Node3D:
+	return _targeting.find_nearest(participant, all)
 
 
 func configure_computers() -> void:

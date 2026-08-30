@@ -48,6 +48,15 @@ func try_computer_kills() -> void:
 				_change_killers.erase(target)
 
 
+func try_computer_free_changes() -> void:
+	for participant in _participants.all:
+		if not participant.is_computer() or participant.is_stunned() or not _status_system.has_free_change(participant):
+			continue
+		var target := _participants.nearest(participant)
+		if target != null and participant.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE:
+			perform_change(participant, target)
+
+
 func update_automatic_kills() -> void:
 	for attacker in _participants.all:
 		if attacker.is_stunned() or not _status_system.is_effect_active(attacker, "automatic_kill_until"):

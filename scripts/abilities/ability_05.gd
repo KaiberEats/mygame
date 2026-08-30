@@ -6,11 +6,11 @@ extends Ability
 func apply(ctx: AbilityContext) -> void:
 	if ctx.is_enhanced:
 		var targets: Array[Node3D] = []
-		for target in ctx.game._participants:
+		for target in ctx.participants.all:
 			if target != ctx.caster:
 				targets.append(target)
 		ctx.ctx.caster.vision().card_view = {"targets": targets, "until": ctx.now + 15.0}
 	else:
-		var nearest: Node3D = ctx.game._find_nearest_participant(ctx.caster)
+		var nearest: Node3D = ctx.participants.nearest(ctx.caster)
 		if nearest != null:
 			ctx.ctx.caster.vision().card_view = {"target": nearest, "until": ctx.now + 15.0}

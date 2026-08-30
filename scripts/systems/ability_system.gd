@@ -4,13 +4,27 @@ extends Node
 ## ペア（同ランク2枚）を使った能力発動。rank→Ability の表で振り分ける。
 ## 能力の中身は abilities/ability_NN.gd（Strategy）。テキストは get_ability_message。
 
-var _game: Node
 var _abilities: Dictionary = {}
 var _pair_action_time_left: float = 0.0
 
+var _participants: Participants
+var _combat: CombatSystem
+var _status_system: StatusSystem
+var _item_system: ItemSystem
+var _deck: Node
+var _net_gateway: NetGateway
+var _game_hud: CanvasLayer
 
-func setup(game: Node) -> void:
-	_game = game
+
+func setup(participants: Participants, combat: CombatSystem, status_system: StatusSystem,
+		item_system: ItemSystem, deck: Node, net_gateway: NetGateway, game_hud: CanvasLayer) -> void:
+	_participants = participants
+	_combat = combat
+	_status_system = status_system
+	_item_system = item_system
+	_deck = deck
+	_net_gateway = net_gateway
+	_game_hud = game_hud
 	_abilities = {
 		1: Ability01.new(), 2: Ability02.new(), 3: Ability03.new(), 4: Ability04.new(),
 		5: Ability05.new(), 6: Ability06.new(), 7: Ability07.new(), 8: Ability08.new(),
@@ -47,10 +61,22 @@ func try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 	activate_pair_ability(participant, ability_rank)
 	participant.cooldown().ability_until = Clock.now() + GameConfig.ABILITY_COOLDOWN_SECONDS
 
-	_game._refill_hand(participant)
+	_refill_hand(participant)
 
-	_game.game_hud.set_deck_count(_game.deck.remaining_count(), _game.deck.total_count())
+	_game_hud.set_deck_count(_deck.remaining_count(), _deck.total_count())
 	return true
+
+
+func _refill_hand(participant: Node3D) -> void:
+	var missing_count := maxi(GameConfig.HAND_SIZE - participant.hand.size(), 0)
+	if missing_count <= 0:
+		return
+	var cards: Array[Dictionary] = _deck.draw_cards(missing_count)
+	if cards.is_empty():
+		return
+	var updated_hand: Array[Dictionary] = participant.hand.duplicate()
+	updated_hand.append_array(cards)
+	participant.set_hand(updated_hand, true)
 
 
 func activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
@@ -62,15 +88,19 @@ func activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
 	var ability: Ability = _abilities.get(ability_rank)
 	if ability != null:
 		var ctx := AbilityContext.new()
-		ctx.game = _game
 		ctx.caster = participant
 		ctx.is_enhanced = is_enhanced
 		ctx.now = Clock.now()
 		ctx.effects = effects
+		ctx.combat = _combat
+		ctx.item_system = _item_system
+		ctx.status_system = _status_system
+		ctx.participants = _participants
+		ctx.deck = _deck
 		ability.apply(ctx)
 
 	var message := "%d  %s" % [ability_rank, get_ability_message(ability_rank, is_enhanced)]
-	_game.notify_participant(participant, message)
+	_net_gateway.notify(participant, message)
 
 
 func update_computer_pair_actions(delta: float) -> void:
@@ -79,7 +109,7 @@ func update_computer_pair_actions(delta: float) -> void:
 		return
 
 	reset_computer_pair_action_timer()
-	for participant in _game._participants:
+	for participant in _participants.all:
 		if not participant.is_computer() or participant.is_stunned() or randf() > GameConfig.COMPUTER_PAIR_ACTION_CHANCE:
 			continue
 
@@ -121,7 +151,7 @@ func get_pair_slot_from_event(event: InputEvent) -> int:
 
 
 func show_ability_not_ready(participant: Node3D) -> void:
-	_game.notify_participant(participant, GameConfig.text("ability_not_ready"))
+	_net_gateway.notify(participant, GameConfig.text("ability_not_ready"))
 
 
 func get_ability_message(rank: int, is_enhanced: bool) -> String:

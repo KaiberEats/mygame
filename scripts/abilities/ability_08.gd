@@ -7,5 +7,5 @@ func apply(ctx: AbilityContext) -> void:
 	ctx.effects["coin_duration"] = 30.0 if ctx.is_enhanced else 20.0
 	ctx.effects["coin_until"] = ctx.now + float(ctx.effects["coin_duration"])
 	ctx.effects["coin_count"] = 2 if ctx.is_enhanced else 1
-	ctx.game._status_system.refresh_speed_multiplier(ctx.caster)
-	ctx.game._item_system.sync_player_slot()
+	ctx.status_system.refresh_speed_multiplier(ctx.caster)
+	ctx.item_system.sync_player_slot()

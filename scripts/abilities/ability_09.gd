@@ -6,4 +6,4 @@ extends Ability
 func apply(ctx: AbilityContext) -> void:
 	ctx.effects["counter_duration"] = 6.0 if ctx.is_enhanced else 3.0
 	ctx.effects["counter_until"] = ctx.now + float(ctx.effects["counter_duration"])
-	ctx.game._item_system.sync_player_slot()
+	ctx.item_system.sync_player_slot()

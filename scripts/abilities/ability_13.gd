@@ -5,6 +5,6 @@ extends Ability
 
 func apply(ctx: AbilityContext) -> void:
 	if ctx.is_enhanced:
-		ctx.game._item_system.grant(ctx.caster, "SWORD")
+		ctx.item_system.grant(ctx.caster, "SWORD")
 	else:
 		ctx.effects["enhance_next_ability"] = true

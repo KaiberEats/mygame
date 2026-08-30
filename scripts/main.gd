@@ -79,7 +79,7 @@ func _ready() -> void:
 	_exchange.setup(_participants_mgr, deck, _net, _net_gateway, game_hud, self)
 	_item_system.setup(_participants_mgr, _combat, _status_system, _targeting, _net_gateway, game_hud)
 	_combat.setup(_participants_mgr, _status_system, _item_system, _targeting, _net_gateway, game_hud)
-	_ability.setup(self)
+	_ability.setup(_participants_mgr, _combat, _status_system, _item_system, deck, _net_gateway, game_hud)
 	_net.setup(self)
 	_flow.setup(self)
 	_status_system.setup(_participants_mgr, _item_system)
@@ -161,7 +161,7 @@ func _process(delta: float) -> void:
 	_item_system.update_computer_items()
 	_combat.clear_expired_change_rights()
 	_combat.try_computer_kills()
-	_try_computer_free_changes()
+	_combat.try_computer_free_changes()
 	_game_state.network_snapshot_time_left -= delta
 	if NetworkManager.is_online and _game_state.network_snapshot_time_left <= 0.0:
 		_game_state.network_snapshot_time_left = GameConfig.NETWORK_SNAPSHOT_INTERVAL
@@ -179,30 +179,6 @@ func _on_hand_reordered(cards: Array[Dictionary]) -> void:
 
 func _on_player_hand_changed(cards: Array[Dictionary]) -> void:
 	game_hud.set_hand(cards)
-
-
-func _refill_hand(participant: Node3D) -> void:
-	var missing_count := maxi(GameConfig.HAND_SIZE - participant.hand.size(), 0)
-	if missing_count <= 0:
-		return
-	var cards: Array[Dictionary] = deck.draw_cards(missing_count)
-	if cards.is_empty():
-		return
-	var updated_hand: Array[Dictionary] = participant.hand.duplicate()
-	updated_hand.append_array(cards)
-	participant.set_hand(updated_hand, true)
-
-
-func _find_nearest_participant(participant: Node3D) -> Node3D:
-	return _targeting.find_nearest(participant, _participants)
-
-
-func _find_visible_missile_target(shooter: Node3D) -> Node3D:
-	return _targeting.find_visible_missile(shooter, _participants, player, GameConfig.KILL_CENTER_DOT)
-
-
-func _has_line_of_sight(shooter: Node3D, target: Node3D) -> bool:
-	return _targeting.has_line_of_sight(shooter, target)
 
 
 func _launch_missile(shooter: Node3D, target: Node3D) -> void:
@@ -229,15 +205,6 @@ func on_missile_hit(target: Node3D) -> void:
 	if not _net.is_game_authority():
 		return
 	_combat.stun_without_change(target)
-
-
-func _try_computer_free_changes() -> void:
-	for participant in _participants:
-		if not participant.is_computer() or participant.is_stunned() or not _status_system.has_free_change(participant):
-			continue
-		var target := _find_nearest_participant(participant)
-		if target != null and participant.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE:
-			_combat.perform_change(participant, target)
 
 
 func respawn_remote(peer_id: int, participant_name: String, spawn_position: Vector3) -> void:
