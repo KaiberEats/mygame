@@ -13,6 +13,7 @@ var exchange_target: StaticBody3D = null
 var _participants: Participants
 var _ability: AbilitySystem
 var _combat: CombatSystem
+var _exchange: ExchangeSystem
 var _status_system: StatusSystem
 var _net: NetSync
 var _net_gateway: NetGateway
@@ -24,12 +25,13 @@ var _world: Node
 var _tutorial_overlay: Control = null
 
 
-func setup(participants: Participants, ability: AbilitySystem, combat: CombatSystem,
+func setup(participants: Participants, ability: AbilitySystem, combat: CombatSystem, exchange: ExchangeSystem,
 		status_system: StatusSystem, net: NetSync, net_gateway: NetGateway, game_state: GameStateManager,
 		game_hud: CanvasLayer, pause_menu: CanvasLayer, settings_menu: Control, world: Node) -> void:
 	_participants = participants
 	_ability = ability
 	_combat = combat
+	_exchange = exchange
 	_status_system = status_system
 	_net = net
 	_net_gateway = net_gateway
@@ -38,6 +40,15 @@ func setup(participants: Participants, ability: AbilitySystem, combat: CombatSys
 	_pause_menu = pause_menu
 	_settings_menu = settings_menu
 	_world = world
+
+
+## 毎フレーム、ローカルプレイヤーが今狙っている kill/change/交換 の対象を更新する。
+## exchange の照準は update_hold が参照する内部状態も更新するため、update_hold より前に呼ぶ。
+func update_aim() -> void:
+	var local_player := _participants.local_player
+	kill_target = _combat.find_kill_target(local_player)
+	change_target = _combat.find_change_target(local_player)
+	exchange_target = _exchange.find_aimed_station()
 
 
 func _unhandled_input(event: InputEvent) -> void:

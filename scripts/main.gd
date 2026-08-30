@@ -77,7 +77,7 @@ func _ready() -> void:
 	_flow.setup(_participants_mgr, _game_state, _net_gateway, game_hud, self)
 	_status_system.setup(_participants_mgr, _item_system)
 	_net_gateway.setup(self)
-	_controls.setup(_participants_mgr, _ability, _combat, _status_system, _net, _net_gateway, _game_state,
+	_controls.setup(_participants_mgr, _ability, _combat, _exchange, _status_system, _net, _net_gateway, _game_state,
 		game_hud, pause_menu, settings_menu, self)
 	_participants_mgr.setup(_participants_root, _net, PLAYER_SCENE, COMPUTER_SCENE)
 	_participants_mgr.local_player = _participants_root.get_node(^"Player")
@@ -139,9 +139,7 @@ func _process(delta: float) -> void:
 	if _net.is_game_authority():
 		_game_state.time_left = maxf(_game_state.time_left - delta, 0.0)
 	_hud.refresh_status()
-	_controls.kill_target = _combat.find_kill_target(player)
-	_controls.change_target = _combat.find_change_target(player)
-	_controls.exchange_target = _exchange.find_aimed_station()
+	_controls.update_aim()
 	_exchange.update_hold(delta)
 	_hud.refresh_actions()
 	if not _net.is_game_authority():
