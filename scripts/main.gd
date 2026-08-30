@@ -77,7 +77,7 @@ func _ready() -> void:
 
 	# --- 結線（依存注入）---
 	_exchange.setup(_participants_mgr, deck, _net, _net_gateway, game_hud, self)
-	_item_system.setup(self)
+	_item_system.setup(_participants_mgr, _combat, _status_system, _targeting, _net_gateway, game_hud)
 	_combat.setup(_participants_mgr, _status_system, _item_system, _targeting, _net_gateway, game_hud)
 	_ability.setup(self)
 	_net.setup(self)
