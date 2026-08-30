@@ -7,7 +7,6 @@ extends Node3D
 const HOMING_MISSILE_SCENE := preload("res://scenes/entities/HomingMissile.tscn")
 const COMPUTER_SCENE := preload("res://scenes/entities/Computer.tscn")
 const PLAYER_SCENE := preload("res://scenes/entities/Player.tscn")
-const TUTORIAL_SCENE := preload("res://scenes/ui/Tutorial.tscn")
 
 @export var minimap_world_half_extent := 20.0
 
@@ -17,9 +16,6 @@ const TUTORIAL_SCENE := preload("res://scenes/ui/Tutorial.tscn")
 @onready var game_hud: CanvasLayer = $UI/GameHud
 @onready var _participants_root: Node3D = $Participants
 
-var _player_kill_target: Node3D = null
-var _player_change_target: Node3D = null
-var _player_exchange_target: StaticBody3D = null
 var _targeting := TargetingService.new()
 var _exchange: ExchangeSystem = null
 var _item_system: ItemSystem = null
@@ -34,7 +30,6 @@ var _status_system: StatusSystem = null
 var _controls: PlayerController = null
 var _game_state: GameStateManager = null
 var _net_gateway: NetGateway = null
-var _tutorial_overlay: Control = null
 
 # System 移行中の互換委譲（移行完了後に撤去）。
 var player: Node3D:
@@ -72,8 +67,8 @@ func _ready() -> void:
 	_controls = PlayerController.new()
 	_register(_controls, "PlayerController")
 	_net_gateway = NetGateway.new()
-	_hud = HudPresenter.new(self, game_hud)
 	_participants_mgr = Participants.new()
+	_hud = HudPresenter.new(game_hud, _participants_mgr, _game_state, _status_system, _controls)
 
 	# --- 結線（依存注入）---
 	_exchange.setup(_participants_mgr, deck, _net, _net_gateway, game_hud, self)
@@ -85,7 +80,8 @@ func _ready() -> void:
 	_flow.setup(_participants_mgr, _game_state, _net_gateway, game_hud, self)
 	_status_system.setup(_participants_mgr, _item_system)
 	_net_gateway.setup(self)
-	_controls.setup(self)
+	_controls.setup(_participants_mgr, _ability, _combat, _status_system, _net, _net_gateway, _game_state,
+		game_hud, pause_menu, settings_menu, self)
 	_participants_mgr.setup(_participants_root, _net, PLAYER_SCENE, COMPUTER_SCENE)
 	_participants_mgr.local_player = _participants_root.get_node(^"Player")
 	_participants_mgr.remote_respawn_requested.connect(respawn_remote)
@@ -146,9 +142,9 @@ func _process(delta: float) -> void:
 	if _net.is_game_authority():
 		_game_state.time_left = maxf(_game_state.time_left - delta, 0.0)
 	_hud.refresh_status()
-	_player_kill_target = _combat.find_kill_target(player)
-	_player_change_target = _combat.find_change_target(player)
-	_player_exchange_target = _exchange.find_aimed_station()
+	_controls.kill_target = _combat.find_kill_target(player)
+	_controls.change_target = _combat.find_change_target(player)
+	_controls.exchange_target = _exchange.find_aimed_station()
 	_exchange.update_hold(delta)
 	_hud.refresh_actions()
 	if not _net.is_game_authority():
