@@ -39,7 +39,6 @@ var _exchange_hold_time := 0.0
 var _exchange_hold_target: StaticBody3D = null
 var _exchange_hold_card_index := -1
 var _exchange_locked_until_release := false
-var _was_stunned: Dictionary = {}
 var _tutorial_overlay: Control = null
 var _player_exchange_card_index := -1
 
@@ -56,48 +55,44 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().paused = false
 	randomize()
+	# --- 構築 ---
 	_exchange = ExchangeSystem.new()
-	_exchange.name = "ExchangeSystem"
-	add_child(_exchange)
-	_exchange.setup(self)
+	_register(_exchange, "ExchangeSystem")
 	_item_system = ItemSystem.new()
-	_item_system.name = "ItemSystem"
-	add_child(_item_system)
-	_item_system.setup(self)
+	_register(_item_system, "ItemSystem")
 	_combat = CombatSystem.new()
-	_combat.name = "CombatSystem"
-	add_child(_combat)
-	_combat.setup(self)
+	_register(_combat, "CombatSystem")
 	_ability = AbilitySystem.new()
-	_ability.name = "AbilitySystem"
-	add_child(_ability)
-	_ability.setup(self)
+	_register(_ability, "AbilitySystem")
 	_net = NetSync.new()
-	_net.name = "NetSync"
-	add_child(_net)
-	_net.setup(self)
+	_register(_net, "NetSync")
 	_flow = GameFlow.new()
-	_flow.name = "GameFlow"
-	add_child(_flow)
-	_flow.setup(self)
+	_register(_flow, "GameFlow")
 	_status_system = StatusSystem.new()
-	_status_system.name = "StatusSystem"
-	add_child(_status_system)
-	_status_system.setup(self)
+	_register(_status_system, "StatusSystem")
 	_game_state = GameStateManager.new()
-	_game_state.name = "GameStateManager"
-	add_child(_game_state)
+	_register(_game_state, "GameStateManager")
+	_controls = PlayerController.new()
+	_register(_controls, "PlayerController")
 	_net_gateway = NetGateway.new()
-	_net_gateway.setup(self)
 	_hud = HudPresenter.new(self, game_hud)
 	_participants_mgr = Participants.new()
+
+	# --- 結線（依存注入）---
+	_exchange.setup(self)
+	_item_system.setup(self)
+	_combat.setup(self)
+	_ability.setup(self)
+	_net.setup(self)
+	_flow.setup(self)
+	_status_system.setup(_participants_mgr, _item_system)
+	_net_gateway.setup(self)
+	_controls.setup(self)
 	_participants_mgr.setup(_participants_root, _net, PLAYER_SCENE, COMPUTER_SCENE)
 	_participants_mgr.local_player = _participants_root.get_node(^"Player")
 	_participants_mgr.remote_respawn_requested.connect(respawn_remote)
-	_controls = PlayerController.new()
-	_controls.name = "PlayerController"
-	add_child(_controls)
-	_controls.setup(self)
+
+	# --- メニュー / HUD シグナル ---
 	pause_menu.hide()
 	settings_menu.hide()
 	pause_menu.resume_requested.connect(_controls.resume_game)
@@ -108,14 +103,15 @@ func _ready() -> void:
 	game_hud.debug_return_requested.connect(_controls.force_return_to_waiting_room)
 	if not NetworkManager.peers_changed.is_connected(_participants_mgr.refresh_network_player_profiles):
 		NetworkManager.peers_changed.connect(_participants_mgr.refresh_network_player_profiles)
+
+	# --- 参加者の生成・配置 ---
 	_participants_mgr.configure_computers()
 	_participants_mgr.spawn_network_players()
 	player.ensure_local_camera()
 	player.hand_changed.connect(_on_player_hand_changed)
 	_participants_mgr.collect()
 	_participants_mgr.cache_spawn_positions()
-	for participant in _participants:
-		_was_stunned[participant] = participant.is_stunned()
+	_status_system.seed_stun_state()
 	_exchange.setup_stations()
 	if _net.is_game_authority():
 		deck.reset_and_shuffle(GameConfig.deck_size)
@@ -136,6 +132,11 @@ func _ready() -> void:
 	game_hud.set_time_left(_game_state.time_left)
 	_ability.reset_computer_pair_action_timer()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
+func _register(system: Node, system_name: String) -> void:
+	system.name = system_name
+	add_child(system)
 
 
 func _process(delta: float) -> void:
