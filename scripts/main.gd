@@ -15,10 +15,8 @@ const TUTORIAL_SCENE := preload("res://scenes/ui/Tutorial.tscn")
 @onready var settings_menu: Control = $UI/Settings
 @onready var deck: Node = $Services/Deck
 @onready var game_hud: CanvasLayer = $UI/GameHud
-@onready var player: CharacterBody3D = $Participants/Player
 @onready var _participants_root: Node3D = $Participants
 
-var _participants: Array[Node3D] = []
 var _player_kill_target: Node3D = null
 var _player_change_target: Node3D = null
 var _player_exchange_target: StaticBody3D = null
@@ -45,7 +43,14 @@ var _network_snapshot_time_left := 0.0
 var _was_stunned: Dictionary = {}
 var _tutorial_overlay: Control = null
 var _player_exchange_card_index := -1
-var _participant_spawn_positions: Dictionary = {}
+
+# 参加者レジストリへの委譲（System 移行中の互換。移行完了後に撤去）。
+var player: Node3D:
+	get:
+		return _participants_mgr.local_player
+var _participants: Array[Node3D]:
+	get:
+		return _participants_mgr.all
 
 
 func _ready() -> void:
@@ -82,7 +87,9 @@ func _ready() -> void:
 	_status_system.setup(self)
 	_hud = HudPresenter.new(self, game_hud)
 	_participants_mgr = Participants.new()
-	_participants_mgr.setup(self)
+	_participants_mgr.setup(_participants_root, _net, PLAYER_SCENE, COMPUTER_SCENE)
+	_participants_mgr.local_player = _participants_root.get_node(^"Player")
+	_participants_mgr.remote_respawn_requested.connect(respawn_remote)
 	_controls = PlayerController.new()
 	_controls.name = "PlayerController"
 	add_child(_controls)
@@ -101,10 +108,7 @@ func _ready() -> void:
 	_participants_mgr.spawn_network_players()
 	player.ensure_local_camera()
 	player.hand_changed.connect(_on_player_hand_changed)
-	_participants = [player]
-	for child in _participants_root.get_children():
-		if child is CharacterBody3D and child != player:
-			_participants.append(child)
+	_participants_mgr.collect()
 	_participants_mgr.cache_spawn_positions()
 	for participant in _participants:
 		_was_stunned[participant] = participant.is_stunned()
@@ -270,10 +274,7 @@ func _receive_game_finished(network_standings: Dictionary) -> void:
 
 
 func _participant_by_name(participant_name: String) -> Node3D:
-	for participant in _participants:
-		if participant.name == participant_name:
-			return participant
-	return null
+	return _participants_mgr.by_name(participant_name)
 
 
 @rpc("authority", "call_remote", "reliable")
