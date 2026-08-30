@@ -49,7 +49,7 @@ func build_state(game: Node) -> Dictionary:
 		"participants": participant_states,
 		"deck_remaining": game.deck.remaining_count(),
 		"deck_total": game.deck.total_count(),
-		"time_left": game._time_left,
+		"time_left": game._game_state.time_left,
 		"stations": station_cards,
 		"change_rights": change_rights,
 		"card_views": build_card_view_state(game, now),
@@ -103,7 +103,7 @@ func build_map_reveal_state(game: Node, now: float) -> Dictionary:
 
 func apply_state(game: Node, state: Dictionary) -> void:
 	var now: float = Clock.now()
-	game._time_left = float(state.get("time_left", game._time_left))
+	game._game_state.time_left = float(state.get("time_left", game._game_state.time_left))
 	game.game_hud.set_deck_count(int(state.get("deck_remaining", 0)), int(state.get("deck_total", 0)))
 	var participant_states: Dictionary = state.get("participants", {})
 	for participant_name in participant_states:

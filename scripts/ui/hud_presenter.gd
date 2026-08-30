@@ -15,7 +15,7 @@ func _init(game: Node, view: CanvasLayer) -> void:
 
 ## 毎フレーム前半: 残り時間・スタン・情報・露出・状態枠。
 func refresh_status() -> void:
-	_view.set_time_left(_game._time_left)
+	_view.set_time_left(_game._game_state.time_left)
 	_view.set_stun_status(_game.player.get_stun_time_left(), GameConfig.STUN_SECONDS)
 	_update_information()
 	_update_exposure()

@@ -33,13 +33,11 @@ var _hud: HudPresenter = null
 var _participants_mgr: Participants = null
 var _status_system: StatusSystem = null
 var _controls: PlayerController = null
-var _time_left := 600.0
-var _game_ending := false
+var _game_state: GameStateManager = null
 var _exchange_hold_time := 0.0
 var _exchange_hold_target: StaticBody3D = null
 var _exchange_hold_card_index := -1
 var _exchange_locked_until_release := false
-var _network_snapshot_time_left := 0.0
 var _was_stunned: Dictionary = {}
 var _tutorial_overlay: Control = null
 var _player_exchange_card_index := -1
@@ -85,6 +83,9 @@ func _ready() -> void:
 	_status_system.name = "StatusSystem"
 	add_child(_status_system)
 	_status_system.setup(self)
+	_game_state = GameStateManager.new()
+	_game_state.name = "GameStateManager"
+	add_child(_game_state)
 	_hud = HudPresenter.new(self, game_hud)
 	_participants_mgr = Participants.new()
 	_participants_mgr.setup(_participants_root, _net, PLAYER_SCENE, COMPUTER_SCENE)
@@ -128,8 +129,8 @@ func _ready() -> void:
 	game_hud.set_change_available(false)
 	game_hud.set_item("")
 	game_hud.set_minimap_world_half_extent(minimap_world_half_extent)
-	_time_left = GameConfig.time_limit_minutes * 60.0
-	game_hud.set_time_left(_time_left)
+	_game_state.time_left = GameConfig.time_limit_minutes * 60.0
+	game_hud.set_time_left(_game_state.time_left)
 	_ability.reset_computer_pair_action_timer()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
@@ -137,11 +138,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if get_tree().paused and _controls.should_pause_game():
 		return
-	if _game_ending:
+	if _game_state.is_ending:
 		return
 
 	if _net.is_game_authority():
-		_time_left = maxf(_time_left - delta, 0.0)
+		_game_state.time_left = maxf(_game_state.time_left - delta, 0.0)
 	_hud.refresh_status()
 	_player_kill_target = _combat.find_kill_target(player)
 	_player_change_target = _combat.find_change_target(player)
@@ -160,11 +161,11 @@ func _process(delta: float) -> void:
 	_combat.clear_expired_change_rights()
 	_combat.try_computer_kills()
 	_try_computer_free_changes()
-	_network_snapshot_time_left -= delta
-	if NetworkManager.is_online and _network_snapshot_time_left <= 0.0:
-		_network_snapshot_time_left = GameConfig.NETWORK_SNAPSHOT_INTERVAL
+	_game_state.network_snapshot_time_left -= delta
+	if NetworkManager.is_online and _game_state.network_snapshot_time_left <= 0.0:
+		_game_state.network_snapshot_time_left = GameConfig.NETWORK_SNAPSHOT_INTERVAL
 		_receive_game_state.rpc(_codec.build_state(self))
-	if _time_left <= 0.0 or _flow.has_empty_hand():
+	if _game_state.time_left <= 0.0 or _flow.has_empty_hand():
 		_flow.finish_game()
 
 

@@ -2,7 +2,7 @@ class_name GameFlow
 extends Node
 
 ## 試合進行: 終了条件・順位計算・リザルト表示。
-## RPC の発火は match(_game) のヘルパー経由。制限時間 `_time_left` は match が保持し _process で減算する。
+## RPC の発火は match(_game) のヘルパー経由。制限時間・終了フラグは GameStateManager が保持する。
 
 var _game: Node
 
@@ -19,9 +19,9 @@ func has_empty_hand() -> bool:
 
 
 func finish_game() -> void:
-	if _game._game_ending:
+	if _game._game_state.is_ending:
 		return
-	_game._game_ending = true
+	_game._game_state.is_ending = true
 	var standings := calculate_standings()
 	if NetworkManager.is_online and multiplayer.is_server():
 		var network_standings: Dictionary = {}
@@ -37,9 +37,9 @@ func finish_game() -> void:
 
 
 func receive_game_finished(network_standings: Dictionary) -> void:
-	if _game._game_ending:
+	if _game._game_state.is_ending:
 		return
-	_game._game_ending = true
+	_game._game_state.is_ending = true
 	var standings: Dictionary = {}
 	for participant_name in network_standings:
 		var participant: Node3D = _game._participant_by_name(String(participant_name))

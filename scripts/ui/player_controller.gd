@@ -12,7 +12,7 @@ func setup(game: Node) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _game._game_ending:
+	if _game._game_state.is_ending:
 		return
 
 	if event.is_action_pressed("ui_cancel"):
@@ -89,7 +89,7 @@ func show_tutorial() -> void:
 	_game._tutorial_overlay.set_meta("overlay", true)
 	_game._tutorial_overlay.tree_exited.connect(func() -> void:
 		_game._tutorial_overlay = null
-		if not _game._game_ending and get_tree().current_scene == _game:
+		if not _game._game_state.is_ending and get_tree().current_scene == _game:
 			show_pause_menu()
 	)
 	_game.game_hud.add_child(_game._tutorial_overlay)
