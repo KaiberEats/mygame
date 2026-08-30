@@ -31,16 +31,13 @@ var _controls: PlayerController = null
 var _game_state: GameStateManager = null
 var _net_gateway: NetGateway = null
 
-# System 移行中の互換委譲（移行完了後に撤去）。
+# 参加者レジストリへのショートハンド（@rpc 入口・構築で使う）。
 var player: Node3D:
 	get:
 		return _participants_mgr.local_player
 var _participants: Array[Node3D]:
 	get:
 		return _participants_mgr.all
-var _change_killers: Dictionary:
-	get:
-		return _combat._change_killers
 
 
 func _ready() -> void:
@@ -187,8 +184,8 @@ func _launch_missile(shooter: Node3D, target: Node3D) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _spawn_missile(shooter_name: String, target_name: String) -> void:
-	var shooter := _participant_by_name(shooter_name)
-	var target := _participant_by_name(target_name)
+	var shooter := _participants_mgr.by_name(shooter_name)
+	var target := _participants_mgr.by_name(target_name)
 	if shooter == null or target == null:
 		return
 	var missile: CharacterBody3D = HOMING_MISSILE_SCENE.instantiate()
@@ -210,7 +207,7 @@ func respawn_remote(peer_id: int, participant_name: String, spawn_position: Vect
 
 @rpc("authority", "call_remote", "reliable")
 func _receive_respawn(participant_name: String, spawn_position: Vector3) -> void:
-	var participant := _participant_by_name(participant_name)
+	var participant := _participants_mgr.by_name(participant_name)
 	if participant == null:
 		return
 	participant.global_position = spawn_position
@@ -225,10 +222,6 @@ func broadcast_game_finished(network_standings: Dictionary) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _receive_game_finished(network_standings: Dictionary) -> void:
 	_flow.receive_game_finished(network_standings)
-
-
-func _participant_by_name(participant_name: String) -> Node3D:
-	return _participants_mgr.by_name(participant_name)
 
 
 @rpc("authority", "call_remote", "reliable")
