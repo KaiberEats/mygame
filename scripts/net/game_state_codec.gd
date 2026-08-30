@@ -20,7 +20,7 @@ func build_state(game: Node) -> Dictionary:
 	var now: float = Clock.now()
 	for participant in game._participants:
 		var effect_state: Dictionary = {}
-		var effects: Dictionary = game._status(participant).data
+		var effects: Dictionary = participant.status().data
 		for key in EFFECT_TIME_KEYS:
 			var remaining: float = maxf(float(effects.get(key, 0.0)) - now, 0.0)
 			if remaining > 0.0:
@@ -58,9 +58,9 @@ func build_state(game: Node) -> Dictionary:
 
 
 func network_item_for(game: Node, participant: Node3D) -> Dictionary:
-	if not game._item(participant).has_item():
+	if not participant.item().has_item():
 		return {}
-	var item: Dictionary = game._item(participant).data
+	var item: Dictionary = participant.item().data
 	return {
 		"name": item.get("name", ""),
 		"duration": item.get("duration", 0.0),
@@ -72,7 +72,7 @@ func network_item_for(game: Node, participant: Node3D) -> Dictionary:
 func build_card_view_state(game: Node, now: float) -> Dictionary:
 	var result: Dictionary = {}
 	for viewer in game._participants:
-		var view: Dictionary = game._vision(viewer).card_view
+		var view: Dictionary = viewer.vision().card_view
 		if view.is_empty():
 			continue
 		var data := {"remaining": maxf(float(view.get("until", 0.0)) - now, 0.0)}
@@ -91,7 +91,7 @@ func build_card_view_state(game: Node, now: float) -> Dictionary:
 func build_map_reveal_state(game: Node, now: float) -> Dictionary:
 	var result: Dictionary = {}
 	for viewer in game._participants:
-		var reveal: Dictionary = game._vision(viewer).map_reveal
+		var reveal: Dictionary = viewer.vision().map_reveal
 		if reveal.is_empty():
 			continue
 		result[viewer.name] = {
@@ -115,14 +115,14 @@ func apply_state(game: Node, state: Dictionary) -> void:
 			participant.global_transform = data.get("transform", participant.global_transform)
 		participant.set_hand(data.get("hand", []))
 		participant.set_stun_state(float(data.get("stun", 0.0)), float(data.get("pending_stun", 0.0)))
-		game._cooldown(participant).kill_until = now + float(data.get("kill_cooldown", 0.0))
-		game._cooldown(participant).ability_until = now + float(data.get("ability_cooldown", 0.0))
+		participant.cooldown().kill_until = now + float(data.get("kill_cooldown", 0.0))
+		participant.cooldown().ability_until = now + float(data.get("ability_cooldown", 0.0))
 		apply_effect_state(game, participant, data.get("effects", {}), now)
 		var item: Dictionary = data.get("item", {})
 		if item.is_empty():
-			game._item(participant).clear()
+			participant.item().clear()
 		else:
-			game._item(participant).data = item
+			participant.item().data = item
 	var stations: Array = game._exchange.stations()
 	var station_cards: Array = state.get("stations", [])
 	for index in mini(stations.size(), station_cards.size()):
@@ -145,7 +145,7 @@ func apply_effect_state(game: Node, participant: Node3D, state: Dictionary, now:
 			effects[key] = now + float(state[key])
 		else:
 			effects[key] = state[key]
-	game._status(participant).data = effects
+	participant.status().data = effects
 	participant.set_gold_outline(effects.has("invincible_until"))
 	participant.set_invisible(effects.has("invisible_until"))
 	game._combat.set_barrier_visual(participant, int(effects.get("barrier_charges", 0)) > 0)
@@ -156,7 +156,7 @@ func apply_effect_state(game: Node, participant: Node3D, state: Dictionary, now:
 
 func apply_card_view_state(game: Node, state: Dictionary, now: float) -> void:
 	for participant in game._participants:
-		game._vision(participant).card_view = {}
+		participant.vision().card_view = {}
 	for viewer_name in state:
 		var viewer: Node3D = game._participant_by_name(String(viewer_name))
 		if viewer == null:
@@ -174,12 +174,12 @@ func apply_card_view_state(game: Node, state: Dictionary, now: float) -> void:
 			var target: Node3D = game._participant_by_name(String(source["target"]))
 			if target != null:
 				view["target"] = target
-		game._vision(viewer).card_view = view
+		viewer.vision().card_view = view
 
 
 func apply_map_reveal_state(game: Node, state: Dictionary, now: float) -> void:
 	for participant in game._participants:
-		game._vision(participant).map_reveal = {}
+		participant.vision().map_reveal = {}
 	for viewer_name in state:
 		var viewer: Node3D = game._participant_by_name(String(viewer_name))
 		if viewer == null:
@@ -190,7 +190,7 @@ func apply_map_reveal_state(game: Node, state: Dictionary, now: float) -> void:
 		for revealed_position in source.get("positions", []):
 			positions[index] = revealed_position
 			index += 1
-		game._vision(viewer).map_reveal = {
+		viewer.vision().map_reveal = {
 			"until": now + float(source.get("remaining", 0.0)),
 			"positions": positions,
 		}

@@ -5,4 +5,4 @@ extends Ability
 
 func apply(ctx: AbilityContext) -> void:
 	ctx.game._item_system.grant(ctx.caster, "MISSILE", 20.0 if ctx.is_enhanced else 10.0)
-	ctx.game._item(ctx.caster).data["charges"] = 2 if ctx.is_enhanced else 1
+	ctx.ctx.caster.item().data["charges"] = 2 if ctx.is_enhanced else 1

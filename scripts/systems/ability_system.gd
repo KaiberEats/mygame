@@ -45,7 +45,7 @@ func try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 	participant.set_hand(updated_hand)
 
 	activate_pair_ability(participant, ability_rank)
-	_game._cooldown(participant).ability_until = Clock.now() + GameConfig.ABILITY_COOLDOWN_SECONDS
+	participant.cooldown().ability_until = Clock.now() + GameConfig.ABILITY_COOLDOWN_SECONDS
 
 	_game._refill_hand(participant)
 
@@ -54,7 +54,7 @@ func try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 
 
 func activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
-	var effects: Dictionary = _game._status(participant).data
+	var effects: Dictionary = participant.status().data
 	var is_enhanced := bool(effects.get("enhance_next_ability", false))
 	if is_enhanced:
 		effects["enhance_next_ability"] = false
@@ -80,7 +80,7 @@ func update_computer_pair_actions(delta: float) -> void:
 
 	reset_computer_pair_action_timer()
 	for participant in _game._participants:
-		if not _game._is_computer(participant) or participant.is_stunned() or randf() > GameConfig.COMPUTER_PAIR_ACTION_CHANCE:
+		if not participant.is_computer() or participant.is_stunned() or randf() > GameConfig.COMPUTER_PAIR_ACTION_CHANCE:
 			continue
 
 		var valid_pair_slots: Array[int] = []

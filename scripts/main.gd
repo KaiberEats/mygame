@@ -107,7 +107,6 @@ func _ready() -> void:
 			_participants.append(child)
 	_participants_mgr.cache_spawn_positions()
 	for participant in _participants:
-		_attach_components(participant)
 		_was_stunned[participant] = participant.is_stunned()
 	_exchange.setup_stations()
 	if _net.is_game_authority():
@@ -232,7 +231,7 @@ func on_missile_hit(target: Node3D) -> void:
 
 func _try_computer_free_changes() -> void:
 	for participant in _participants:
-		if not _is_computer(participant) or participant.is_stunned() or not _status_system.has_free_change(participant):
+		if not participant.is_computer() or participant.is_stunned() or not _status_system.has_free_change(participant):
 			continue
 		var target := _find_nearest_participant(participant)
 		if target != null and participant.global_position.distance_to(target.global_position) <= GameConfig.KILL_DISTANCE:
@@ -240,11 +239,11 @@ func _try_computer_free_changes() -> void:
 
 
 func _get_kill_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(_cooldown(participant).kill_until) - Clock.now(), 0.0)
+	return maxf(float(participant.cooldown().kill_until) - Clock.now(), 0.0)
 
 
 func _get_ability_cooldown_left(participant: Node3D) -> float:
-	return maxf(float(_cooldown(participant).ability_until) - Clock.now(), 0.0)
+	return maxf(float(participant.cooldown().ability_until) - Clock.now(), 0.0)
 
 
 func respawn_remote(peer_id: int, participant_name: String, spawn_position: Vector3) -> void:
@@ -268,16 +267,6 @@ func broadcast_game_finished(network_standings: Dictionary) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _receive_game_finished(network_standings: Dictionary) -> void:
 	_flow.receive_game_finished(network_standings)
-
-
-func _participant_name(participant: Node3D) -> String:
-	if participant.has_method("get_display_name"):
-		return participant.get_display_name()
-	return participant.name
-
-
-func _is_computer(participant: Node3D) -> bool:
-	return participant.has_method("get_chase_target")
 
 
 func _participant_by_name(participant_name: String) -> Node3D:
@@ -371,36 +360,5 @@ func _request_full_state() -> void:
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _receive_game_state(state: Dictionary) -> void:
 	_codec.apply_state(self, state)
-
-
-func _attach_components(participant: Node) -> void:
-	var status := StatusComponent.new()
-	status.name = "StatusComponent"
-	participant.add_child(status)
-	var cooldown := CooldownComponent.new()
-	cooldown.name = "CooldownComponent"
-	participant.add_child(cooldown)
-	var item := ItemComponent.new()
-	item.name = "ItemComponent"
-	participant.add_child(item)
-	var vision := VisionComponent.new()
-	vision.name = "VisionComponent"
-	participant.add_child(vision)
-
-
-func _status(participant: Node) -> StatusComponent:
-	return participant.get_node(^"StatusComponent")
-
-
-func _cooldown(participant: Node) -> CooldownComponent:
-	return participant.get_node(^"CooldownComponent")
-
-
-func _item(participant: Node) -> ItemComponent:
-	return participant.get_node(^"ItemComponent")
-
-
-func _vision(participant: Node) -> VisionComponent:
-	return participant.get_node(^"VisionComponent")
 
 

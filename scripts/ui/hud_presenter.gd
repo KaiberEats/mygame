@@ -33,31 +33,31 @@ func refresh_actions() -> void:
 func _update_information() -> void:
 	var revealed_positions: Array[Vector3] = []
 	var empty_cards: Array[Dictionary] = []
-	var reveal_data: Dictionary = _game._vision(_game.player).map_reveal
+	var reveal_data: Dictionary = _game.player.vision().map_reveal
 	var revealed: Dictionary = reveal_data.get("positions", {})
 	for revealed_position in revealed.values():
 		revealed_positions.append(revealed_position)
 	_view.set_minimap_data(_game.player.global_position, revealed_positions)
 
-	if _game._vision(_game.player).card_view.is_empty():
+	if _game.player.vision().card_view.is_empty():
 		_view.set_viewed_hand("", empty_cards)
 		return
-	var view_data: Dictionary = _game._vision(_game.player).card_view
+	var view_data: Dictionary = _game.player.vision().card_view
 	if view_data.has("targets"):
 		var names: Array[String] = []
 		var cards: Array[Dictionary] = []
 		for viewed_target in view_data["targets"]:
 			if is_instance_valid(viewed_target):
-				names.append(_game._participant_name(viewed_target))
+				names.append(viewed_target.get_display_name())
 				cards.append_array(viewed_target.hand)
 		_view.set_viewed_hand(" / ".join(names), cards)
 		return
 	var target: Node3D = view_data.get("target")
 	if not is_instance_valid(target):
-		_game._vision(_game.player).card_view = {}
+		_game.player.vision().card_view = {}
 		_view.set_viewed_hand("", empty_cards)
 		return
-	_view.set_viewed_hand(_game._participant_name(target), target.hand)
+	_view.set_viewed_hand(target.get_display_name(), target.hand)
 
 
 func _update_exposure() -> void:
@@ -65,7 +65,7 @@ func _update_exposure() -> void:
 
 
 func _update_edge_status() -> void:
-	var effects: Dictionary = _game._status(_game.player).data
+	var effects: Dictionary = _game.player.status().data
 	_view.set_edge_status_effects(
 		_game.player.has_joker(),
 		float(effects.get("invincible_until", 0.0)) > Clock.now(),

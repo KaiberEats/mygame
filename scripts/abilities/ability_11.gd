@@ -8,7 +8,7 @@ func apply(ctx: AbilityContext) -> void:
 	for target in ctx.game._participants:
 		if target != ctx.caster:
 			positions[target] = target.global_position
-	ctx.game._vision(ctx.caster).map_reveal = {
+	ctx.ctx.caster.vision().map_reveal = {
 		"positions": positions,
 		"until": ctx.now + (20.0 if ctx.is_enhanced else 10.0),
 	}

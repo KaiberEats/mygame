@@ -1,4 +1,4 @@
-extends CharacterBody3D
+extends Participant
 
 signal hand_changed(cards: Array[Dictionary])
 
@@ -29,6 +29,7 @@ var _barrier_active := false
 
 
 func _ready() -> void:
+	super()
 	add_to_group("participants")
 	_body_material = body.get_active_material(0).duplicate() as StandardMaterial3D
 	body.material_override = _body_material

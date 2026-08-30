@@ -12,7 +12,7 @@ func setup(game: Node) -> void:
 
 
 func grant(participant: Node3D, item_name: String, duration: float = 0.0, icon: Texture2D = null) -> void:
-	_game._item(participant).data = {
+	participant.item().data = {
 		"name": item_name,
 		"duration": maxf(duration, 0.0),
 		"time_left": maxf(duration, 0.0),
@@ -23,30 +23,30 @@ func grant(participant: Node3D, item_name: String, duration: float = 0.0, icon: 
 
 func update(delta: float) -> void:
 	for participant in _game._participants:
-		if not is_instance_valid(participant) or not _game._item(participant).has_item():
+		if not is_instance_valid(participant) or not participant.item().has_item():
 			continue
 
-		var item: Dictionary = _game._item(participant).data
+		var item: Dictionary = participant.item().data
 		var duration: float = float(item.get("duration", 0.0))
 		if duration <= 0.0:
 			continue
 
 		var time_left: float = maxf(float(item.get("time_left", 0.0)) - delta, 0.0)
 		if time_left <= 0.0:
-			_game._item(participant).clear()
+			participant.item().clear()
 		else:
 			item["time_left"] = time_left
-			_game._item(participant).data = item
+			participant.item().data = item
 
 	sync_player_slot()
 
 
 func use(participant: Node3D) -> void:
-	if not _game._item(participant).has_item():
+	if not participant.item().has_item():
 		use_passive(participant, "")
 		return
 
-	var item: Dictionary = _game._item(participant).data
+	var item: Dictionary = participant.item().data
 	var item_name := String(item.get("name", ""))
 	if item_name == "MISSILE":
 		var target: Node3D = _game._find_visible_missile_target(participant)
@@ -58,9 +58,9 @@ func use(participant: Node3D) -> void:
 	var charges_left := int(item.get("charges", 1)) - 1
 	if charges_left > 0:
 		item["charges"] = charges_left
-		_game._item(participant).data = item
+		participant.item().data = item
 	else:
-		_game._item(participant).clear()
+		participant.item().clear()
 	activate(participant, item_name)
 	sync_player_slot()
 
@@ -80,7 +80,7 @@ func use_passive(participant: Node3D, target_name: String) -> void:
 
 
 func sync_player_slot() -> void:
-	if not _game._item(_game.player).has_item():
+	if not _game.player.item().has_item():
 		var passive_item := passive_slot_for(_game.player)
 		if passive_item.is_empty():
 			_game.game_hud.set_item("")
@@ -92,7 +92,7 @@ func sync_player_slot() -> void:
 			)
 		return
 
-	var item: Dictionary = _game._item(_game.player).data
+	var item: Dictionary = _game.player.item().data
 	_game.game_hud.set_item(
 		String(item.get("name", "")),
 		float(item.get("time_left", 0.0)),
@@ -104,7 +104,7 @@ func sync_player_slot() -> void:
 func passive_slot_for(participant: Node3D) -> Dictionary:
 	if not is_instance_valid(participant):
 		return {}
-	var effects: Dictionary = _game._status(participant).data
+	var effects: Dictionary = participant.status().data
 	var now: float = Clock.now()
 	var scythe_until := maxf(
 		float(effects.get("scythe_until", 0.0)),
@@ -141,7 +141,7 @@ func passive_slot_for(participant: Node3D) -> Dictionary:
 
 func update_computer_items() -> void:
 	for participant in _game._participants:
-		if not _game._is_computer(participant) or participant.is_stunned() or not _game._item(participant).has_item():
+		if not participant.is_computer() or participant.is_stunned() or not participant.item().has_item():
 			continue
 		if randf() < 0.005:
 			use(participant)

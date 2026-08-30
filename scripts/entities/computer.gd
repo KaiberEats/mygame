@@ -1,4 +1,4 @@
-extends CharacterBody3D
+extends Participant
 
 const HAND_SORTER := preload("res://scripts/util/hand_sorter.gd")
 
@@ -25,10 +25,15 @@ var _barrier_effect: MeshInstance3D
 
 
 func _ready() -> void:
+	super()
 	add_to_group("participants")
 	_create_barrier_effect()
 	_pick_random_action()
 	_reset_jump_timer()
+
+
+func is_computer() -> bool:
+	return true
 
 
 func _physics_process(delta: float) -> void:

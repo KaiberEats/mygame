@@ -15,7 +15,7 @@ func setup(game: Node) -> void:
 func update_effects() -> void:
 	var now: float = Clock.now()
 	for participant in _game._participants:
-		var effects: Dictionary = _game._status(participant).data
+		var effects: Dictionary = participant.status().data
 		if float(effects.get("invincible_until", 0.0)) > 0.0 and now >= float(effects["invincible_until"]):
 			effects.erase("invincible_until")
 			participant.set_gold_outline(false)
@@ -63,18 +63,18 @@ func update_effects() -> void:
 				effects.erase("auto_cleanse_at")
 
 	for viewer in _game._participants:
-		var cv: Dictionary = _game._vision(viewer).card_view
+		var cv: Dictionary = viewer.vision().card_view
 		if not cv.is_empty() and now >= float(cv.get("until", 0.0)):
-			_game._vision(viewer).card_view = {}
-		var mr: Dictionary = _game._vision(viewer).map_reveal
+			viewer.vision().card_view = {}
+		var mr: Dictionary = viewer.vision().map_reveal
 		if not mr.is_empty() and now >= float(mr.get("until", 0.0)):
-			_game._vision(viewer).map_reveal = {}
+			viewer.vision().map_reveal = {}
 	_game._item_system.sync_player_slot()
 
 
 func is_location_revealed(target: Node3D) -> bool:
 	for viewer in _game._participants:
-		var positions: Dictionary = _game._vision(viewer).map_reveal.get("positions", {})
+		var positions: Dictionary = viewer.vision().map_reveal.get("positions", {})
 		if positions.has(target):
 			return true
 	return false
@@ -82,7 +82,7 @@ func is_location_revealed(target: Node3D) -> bool:
 
 func is_hand_being_viewed(target: Node3D) -> bool:
 	for viewer in _game._participants:
-		var view_data: Dictionary = _game._vision(viewer).card_view
+		var view_data: Dictionary = viewer.vision().card_view
 		if view_data.get("target") == target:
 			return true
 		if view_data.has("targets") and target in view_data["targets"]:
@@ -91,27 +91,27 @@ func is_hand_being_viewed(target: Node3D) -> bool:
 
 
 func has_extra_kill(participant: Node3D) -> bool:
-	var effects: Dictionary = _game._status(participant).data
+	var effects: Dictionary = participant.status().data
 	return bool(effects.get("extra_kill_available", false)) and is_effect_active(participant, "extra_kill_until")
 
 
 func has_free_change(participant: Node3D) -> bool:
-	var effects: Dictionary = _game._status(participant).data
+	var effects: Dictionary = participant.status().data
 	return int(effects.get("free_change_count", 0)) > 0 and is_effect_active(participant, "free_change_until")
 
 
 func has_ready_scythe(participant: Node3D) -> bool:
-	var effects: Dictionary = _game._status(participant).data
+	var effects: Dictionary = participant.status().data
 	return float(effects.get("scythe_until", 0.0)) > Clock.now()
 
 
 func has_ready_coin(participant: Node3D) -> bool:
-	var effects: Dictionary = _game._status(participant).data
+	var effects: Dictionary = participant.status().data
 	return int(effects.get("coin_count", 0)) > 0 and float(effects.get("coin_until", 0.0)) > Clock.now()
 
 
 func is_effect_active(participant: Node3D, key: String) -> bool:
-	return float(_game._status(participant).data.get(key, 0.0)) > Clock.now()
+	return float(participant.status().data.get(key, 0.0)) > Clock.now()
 
 
 func update_post_stun_buffs() -> void:
@@ -119,7 +119,7 @@ func update_post_stun_buffs() -> void:
 	for participant in _game._participants:
 		var is_stunned_now: bool = participant.is_stunned()
 		if bool(_game._was_stunned.get(participant, false)) and not is_stunned_now:
-			var effects: Dictionary = _game._status(participant).data
+			var effects: Dictionary = participant.status().data
 			effects["invincible_until"] = maxf(
 				float(effects.get("invincible_until", 0.0)),
 				now + GameConfig.POST_STUN_BUFF_SECONDS
@@ -145,16 +145,16 @@ func refresh_speed_multiplier(participant: Node3D) -> void:
 func clear_negative_statuses(participant: Node3D) -> void:
 	participant.clear_stun()
 	for viewer in _game._participants:
-		var view_data: Dictionary = _game._vision(viewer).card_view
+		var view_data: Dictionary = viewer.vision().card_view
 		if view_data.get("target") == participant:
-			_game._vision(viewer).card_view = {}
+			viewer.vision().card_view = {}
 		elif view_data.has("targets"):
 			var targets: Array = view_data["targets"]
 			targets.erase(participant)
 			if targets.is_empty():
-				_game._vision(viewer).card_view = {}
+				viewer.vision().card_view = {}
 	for viewer in _game._participants:
-		var positions: Dictionary = _game._vision(viewer).map_reveal.get("positions", {})
+		var positions: Dictionary = viewer.vision().map_reveal.get("positions", {})
 		positions.erase(participant)
 
 
@@ -162,13 +162,13 @@ func has_negative_status(participant: Node3D) -> bool:
 	if participant.is_stunned():
 		return true
 	for viewer in _game._participants:
-		var view_data: Dictionary = _game._vision(viewer).card_view
+		var view_data: Dictionary = viewer.vision().card_view
 		if view_data.get("target") == participant:
 			return true
 		if view_data.has("targets") and participant in view_data["targets"]:
 			return true
 	for viewer in _game._participants:
-		var positions: Dictionary = _game._vision(viewer).map_reveal.get("positions", {})
+		var positions: Dictionary = viewer.vision().map_reveal.get("positions", {})
 		if positions.has(participant):
 			return true
 	return false

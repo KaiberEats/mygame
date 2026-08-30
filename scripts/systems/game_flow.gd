@@ -106,7 +106,7 @@ func show_results(standings: Dictionary) -> void:
 		var row := Label.new()
 		row.text = "%d  %s  -  %s%s" % [
 			int(standings[participant]),
-			_game._participant_name(participant),
+			participant.get_display_name(),
 			GameConfig.text("cards") % participant.hand.size(),
 			("  ジョーカー" if GameConfig.language == "ja" else "  JOKER") if participant.has_joker() else "",
 		]

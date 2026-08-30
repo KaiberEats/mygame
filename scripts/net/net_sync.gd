@@ -65,7 +65,7 @@ func can_server_kill(actor: Node3D, target: Node3D) -> bool:
 func can_server_scythe(actor: Node3D, target: Node3D) -> bool:
 	if actor == null or actor.is_stunned() or not _game._status_system.has_ready_scythe(actor):
 		return false
-	var effects: Dictionary = _game._status(actor).data
+	var effects: Dictionary = actor.status().data
 	if bool(effects.get("scythe_enhanced", false)):
 		return true
 	return (

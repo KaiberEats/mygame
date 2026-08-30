@@ -125,7 +125,7 @@ func set_hand_editor_open(is_open: bool) -> void:
 
 func request_use_button_action() -> void:
 	var scythe_target: Node3D = _game._combat.find_scythe_target(_game.player)
-	var player_effects: Dictionary = _game._status(_game.player).data
+	var player_effects: Dictionary = _game.player.status().data
 	if _game._status_system.has_ready_scythe(_game.player) and (scythe_target != null or bool(player_effects.get("scythe_enhanced", false))):
 		var target_name := ""
 		if scythe_target != null:
