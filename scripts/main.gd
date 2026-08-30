@@ -80,7 +80,8 @@ func _ready() -> void:
 	_item_system.setup(_participants_mgr, _combat, _status_system, _targeting, _net_gateway, game_hud)
 	_combat.setup(_participants_mgr, _status_system, _item_system, _targeting, _net_gateway, game_hud)
 	_ability.setup(_participants_mgr, _combat, _status_system, _item_system, deck, _net_gateway, game_hud)
-	_net.setup(self)
+	_net.setup(_participants_mgr, _ability, _item_system, _combat, _status_system)
+	_codec.setup(_participants_mgr, _exchange, _combat, _status_system, _item_system, deck, game_hud, _game_state)
 	_flow.setup(_participants_mgr, _game_state, _net_gateway, game_hud, self)
 	_status_system.setup(_participants_mgr, _item_system)
 	_net_gateway.setup(self)
@@ -165,7 +166,7 @@ func _process(delta: float) -> void:
 	_game_state.network_snapshot_time_left -= delta
 	if NetworkManager.is_online and _game_state.network_snapshot_time_left <= 0.0:
 		_game_state.network_snapshot_time_left = GameConfig.NETWORK_SNAPSHOT_INTERVAL
-		_receive_game_state.rpc(_codec.build_state(self))
+		_receive_game_state.rpc(_codec.build_state())
 	if _game_state.time_left <= 0.0 or _flow.has_empty_hand():
 		_flow.finish_game()
 
@@ -312,11 +313,11 @@ func _request_reorder(cards: Array) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _request_full_state() -> void:
 	if multiplayer.is_server():
-		_receive_game_state.rpc_id(multiplayer.get_remote_sender_id(), _codec.build_state(self))
+		_receive_game_state.rpc_id(multiplayer.get_remote_sender_id(), _codec.build_state())
 
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _receive_game_state(state: Dictionary) -> void:
-	_codec.apply_state(self, state)
+	_codec.apply_state(state)
 
 

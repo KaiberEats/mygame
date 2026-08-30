@@ -25,8 +25,9 @@ func setup(participants: Participants, status_system: StatusSystem, item_system:
 	_game_hud = game_hud
 
 
-func change_killer_of(target: Node3D) -> Node3D:
-	return _change_killers.get(target)
+## チェンジ権テーブル(target -> 直近killer)。ネット直列化/検証から参照・更新される。
+func change_rights() -> Dictionary:
+	return _change_killers
 
 
 func try_computer_kills() -> void:

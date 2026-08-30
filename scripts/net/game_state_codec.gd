@@ -2,7 +2,7 @@ class_name GameStateCodec
 extends RefCounted
 
 ## 試合状態の直列化 / 復元。参加者コンポーネント・deck・交換ステーション等を Dictionary に写す。
-## RPC の入口は match(_game) 側に残し、その本体からここを呼ぶ。
+## RPC の入口は match 側に残し、その本体からここを呼ぶ。
 
 const EFFECT_TIME_KEYS := [
 	"invincible_until", "invisible_until", "free_change_until", "extra_kill_until", "scythe_until", "coin_until",
@@ -14,11 +14,33 @@ const EFFECT_VALUE_KEYS := [
 	"counter_duration", "barrier_charges", "enhance_next_ability",
 ]
 
+var _participants: Participants
+var _exchange: ExchangeSystem
+var _combat: CombatSystem
+var _status_system: StatusSystem
+var _item_system: ItemSystem
+var _deck: Node
+var _game_hud: CanvasLayer
+var _game_state: GameStateManager
 
-func build_state(game: Node) -> Dictionary:
+
+func setup(participants: Participants, exchange: ExchangeSystem, combat: CombatSystem,
+		status_system: StatusSystem, item_system: ItemSystem, deck: Node,
+		game_hud: CanvasLayer, game_state: GameStateManager) -> void:
+	_participants = participants
+	_exchange = exchange
+	_combat = combat
+	_status_system = status_system
+	_item_system = item_system
+	_deck = deck
+	_game_hud = game_hud
+	_game_state = game_state
+
+
+func build_state() -> Dictionary:
 	var participant_states: Dictionary = {}
 	var now: float = Clock.now()
-	for participant in game._participants:
+	for participant in _participants.all:
 		var effect_state: Dictionary = {}
 		var effects: Dictionary = participant.status().data
 		for key in EFFECT_TIME_KEYS:
@@ -34,30 +56,31 @@ func build_state(game: Node) -> Dictionary:
 			"stun": participant.get_stun_time_left(),
 			"pending_stun": 0.0,
 			"effects": effect_state,
-			"kill_cooldown": participant.cooldown().kill_left(Clock.now()),
-			"ability_cooldown": participant.cooldown().ability_left(Clock.now()),
-			"item": network_item_for(game, participant),
+			"kill_cooldown": participant.cooldown().kill_left(now),
+			"ability_cooldown": participant.cooldown().ability_left(now),
+			"item": network_item_for(participant),
 		}
 	var station_cards: Array = []
-	for station in game._exchange.stations():
-		station_cards.append(game._exchange.station_cards(station))
+	for station in _exchange.stations():
+		station_cards.append(_exchange.station_cards(station))
 	var change_rights: Dictionary = {}
-	for target in game._change_killers:
-		if is_instance_valid(target) and is_instance_valid(game._change_killers[target]):
-			change_rights[target.name] = game._change_killers[target].name
+	var killers: Dictionary = _combat.change_rights()
+	for target in killers:
+		if is_instance_valid(target) and is_instance_valid(killers[target]):
+			change_rights[target.name] = killers[target].name
 	return {
 		"participants": participant_states,
-		"deck_remaining": game.deck.remaining_count(),
-		"deck_total": game.deck.total_count(),
-		"time_left": game._game_state.time_left,
+		"deck_remaining": _deck.remaining_count(),
+		"deck_total": _deck.total_count(),
+		"time_left": _game_state.time_left,
 		"stations": station_cards,
 		"change_rights": change_rights,
-		"card_views": build_card_view_state(game, now),
-		"map_reveals": build_map_reveal_state(game, now),
+		"card_views": build_card_view_state(now),
+		"map_reveals": build_map_reveal_state(now),
 	}
 
 
-func network_item_for(game: Node, participant: Node3D) -> Dictionary:
+func network_item_for(participant: Node3D) -> Dictionary:
 	if not participant.item().has_item():
 		return {}
 	var item: Dictionary = participant.item().data
@@ -69,9 +92,9 @@ func network_item_for(game: Node, participant: Node3D) -> Dictionary:
 	}
 
 
-func build_card_view_state(game: Node, now: float) -> Dictionary:
+func build_card_view_state(now: float) -> Dictionary:
 	var result: Dictionary = {}
-	for viewer in game._participants:
+	for viewer in _participants.all:
 		var view: Dictionary = viewer.vision().card_view
 		if view.is_empty():
 			continue
@@ -88,9 +111,9 @@ func build_card_view_state(game: Node, now: float) -> Dictionary:
 	return result
 
 
-func build_map_reveal_state(game: Node, now: float) -> Dictionary:
+func build_map_reveal_state(now: float) -> Dictionary:
 	var result: Dictionary = {}
-	for viewer in game._participants:
+	for viewer in _participants.all:
 		var reveal: Dictionary = viewer.vision().map_reveal
 		if reveal.is_empty():
 			continue
@@ -101,44 +124,45 @@ func build_map_reveal_state(game: Node, now: float) -> Dictionary:
 	return result
 
 
-func apply_state(game: Node, state: Dictionary) -> void:
+func apply_state(state: Dictionary) -> void:
 	var now: float = Clock.now()
-	game._game_state.time_left = float(state.get("time_left", game._game_state.time_left))
-	game.game_hud.set_deck_count(int(state.get("deck_remaining", 0)), int(state.get("deck_total", 0)))
+	_game_state.time_left = float(state.get("time_left", _game_state.time_left))
+	_game_hud.set_deck_count(int(state.get("deck_remaining", 0)), int(state.get("deck_total", 0)))
 	var participant_states: Dictionary = state.get("participants", {})
 	for participant_name in participant_states:
-		var participant: Node3D = game._participant_by_name(String(participant_name))
+		var participant: Node3D = _participants.by_name(String(participant_name))
 		if participant == null:
 			continue
 		var data: Dictionary = participant_states[participant_name]
-		if participant != game.player:
+		if participant != _participants.local_player:
 			participant.global_transform = data.get("transform", participant.global_transform)
 		participant.set_hand(data.get("hand", []))
 		participant.set_stun_state(float(data.get("stun", 0.0)), float(data.get("pending_stun", 0.0)))
 		participant.cooldown().kill_until = now + float(data.get("kill_cooldown", 0.0))
 		participant.cooldown().ability_until = now + float(data.get("ability_cooldown", 0.0))
-		apply_effect_state(game, participant, data.get("effects", {}), now)
+		apply_effect_state(participant, data.get("effects", {}), now)
 		var item: Dictionary = data.get("item", {})
 		if item.is_empty():
 			participant.item().clear()
 		else:
 			participant.item().data = item
-	var stations: Array = game._exchange.stations()
+	var stations: Array = _exchange.stations()
 	var station_cards: Array = state.get("stations", [])
 	for index in mini(stations.size(), station_cards.size()):
-		game._exchange.set_station_cards(stations[index], station_cards[index])
-	game._change_killers.clear()
+		_exchange.set_station_cards(stations[index], station_cards[index])
+	var killers: Dictionary = _combat.change_rights()
+	killers.clear()
 	for target_name in state.get("change_rights", {}):
-		var target: Node3D = game._participant_by_name(String(target_name))
-		var attacker: Node3D = game._participant_by_name(String(state["change_rights"][target_name]))
+		var target: Node3D = _participants.by_name(String(target_name))
+		var attacker: Node3D = _participants.by_name(String(state["change_rights"][target_name]))
 		if target != null and attacker != null:
-			game._change_killers[target] = attacker
-	apply_card_view_state(game, state.get("card_views", {}), now)
-	apply_map_reveal_state(game, state.get("map_reveals", {}), now)
-	game._item_system.sync_player_slot()
+			killers[target] = attacker
+	apply_card_view_state(state.get("card_views", {}), now)
+	apply_map_reveal_state(state.get("map_reveals", {}), now)
+	_item_system.sync_player_slot()
 
 
-func apply_effect_state(game: Node, participant: Node3D, state: Dictionary, now: float) -> void:
+func apply_effect_state(participant: Node3D, state: Dictionary, now: float) -> void:
 	var effects: Dictionary = {}
 	for key in state:
 		if String(key).ends_with("_until"):
@@ -148,17 +172,17 @@ func apply_effect_state(game: Node, participant: Node3D, state: Dictionary, now:
 	participant.status().data = effects
 	participant.set_gold_outline(effects.has("invincible_until"))
 	participant.set_invisible(effects.has("invisible_until"))
-	game._combat.set_barrier_visual(participant, int(effects.get("barrier_charges", 0)) > 0)
-	game._status_system.refresh_speed_multiplier(participant)
+	_combat.set_barrier_visual(participant, int(effects.get("barrier_charges", 0)) > 0)
+	_status_system.refresh_speed_multiplier(participant)
 	if participant.has_method("set_can_kill_without_joker"):
 		participant.set_can_kill_without_joker(bool(effects.get("extra_kill_available", false)))
 
 
-func apply_card_view_state(game: Node, state: Dictionary, now: float) -> void:
-	for participant in game._participants:
+func apply_card_view_state(state: Dictionary, now: float) -> void:
+	for participant in _participants.all:
 		participant.vision().card_view = {}
 	for viewer_name in state:
-		var viewer: Node3D = game._participant_by_name(String(viewer_name))
+		var viewer: Node3D = _participants.by_name(String(viewer_name))
 		if viewer == null:
 			continue
 		var source: Dictionary = state[viewer_name]
@@ -166,22 +190,22 @@ func apply_card_view_state(game: Node, state: Dictionary, now: float) -> void:
 		if source.has("targets"):
 			var targets: Array[Node3D] = []
 			for target_name in source["targets"]:
-				var target: Node3D = game._participant_by_name(String(target_name))
+				var target: Node3D = _participants.by_name(String(target_name))
 				if target != null:
 					targets.append(target)
 			view["targets"] = targets
 		elif source.has("target"):
-			var target: Node3D = game._participant_by_name(String(source["target"]))
+			var target: Node3D = _participants.by_name(String(source["target"]))
 			if target != null:
 				view["target"] = target
 		viewer.vision().card_view = view
 
 
-func apply_map_reveal_state(game: Node, state: Dictionary, now: float) -> void:
-	for participant in game._participants:
+func apply_map_reveal_state(state: Dictionary, now: float) -> void:
+	for participant in _participants.all:
 		participant.vision().map_reveal = {}
 	for viewer_name in state:
-		var viewer: Node3D = game._participant_by_name(String(viewer_name))
+		var viewer: Node3D = _participants.by_name(String(viewer_name))
 		if viewer == null:
 			continue
 		var source: Dictionary = state[viewer_name]
