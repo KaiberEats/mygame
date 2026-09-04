@@ -4,3 +4,12 @@
 
 # Local Epic Online Services credentials. Never commit this file.
 /eos_credentials.local.cfg
+
+.DS_Store
+
+# 書き出し(export)成果物・一時ファイル（root を汚さない）
+/build/
+/joker.exe
+/joker.pck
+/*.dll
+*~RF*.TMP
