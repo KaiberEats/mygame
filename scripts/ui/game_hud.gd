@@ -268,7 +268,7 @@ func _apply_responsive_layout() -> void:
 	deck_count_label.add_theme_font_size_override("font_size", roundi(26.0 * _hud_scale))
 
 	var card_size := Vector2(72.0, 104.0) * _hud_scale
-	var hand_width := minf(card_size.x * 8.0 + small_gap * 7.0, viewport_size.x * 0.58)
+	var hand_width := minf(card_size.x * float(GameConfig.hand_size) + small_gap * float(GameConfig.hand_size - 1), viewport_size.x * 0.58)
 	hand_container.offset_left = -margin - hand_width
 	hand_container.offset_top = margin
 	hand_container.offset_right = -margin
@@ -573,6 +573,11 @@ func _render_cards(container: HBoxContainer, cards: Array[Dictionary], is_dragga
 		child.queue_free()
 
 	for index in cards.size():
+		if cards[index].is_empty():
+			var empty_slot := Control.new()
+			empty_slot.custom_minimum_size = Vector2(72.0, 104.0) * _hud_scale
+			container.add_child(empty_slot)
+			continue
 		var card_view := CARD_VIEW_SCENE.instantiate()
 		container.add_child(card_view)
 		if container == viewed_hand:
@@ -594,8 +599,9 @@ func _on_card_dropped(from_index: int, to_index: int) -> void:
 	):
 		return
 
-	var moved_card: Dictionary = _editor_cards.pop_at(from_index)
-	_editor_cards.insert(to_index, moved_card)
+	var moved_card: Dictionary = _editor_cards[from_index]
+	_editor_cards[from_index] = _editor_cards[to_index]
+	_editor_cards[to_index] = moved_card
 	_render_cards(editor_hand_container, _editor_cards, true)
 	_render_cards(hand_container, _editor_cards, false)
 	hand_reordered.emit(_editor_cards.duplicate())

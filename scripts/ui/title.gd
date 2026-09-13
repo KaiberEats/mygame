@@ -142,7 +142,7 @@ func _apply_responsive_layout() -> void:
 	var menu_size := Vector2(330.0, 330.0) * layout_scale if is_narrow else Vector2(360.0, 560.0) * layout_scale
 	_image_area.custom_minimum_size = image_size
 	_menu_host.custom_minimum_size = menu_size
-	_title_label.add_theme_font_size_override("font_size", roundi((72.0 if is_narrow else 96.0) * layout_scale))
+	_title_label.add_theme_font_size_override("font_size", roundi((38.0 if is_narrow else 48.0) * layout_scale))
 	_main_menu.add_theme_constant_override("separation", roundi(28.0 * layout_scale))
 	if _mode_menu != null:
 		_mode_menu.add_theme_constant_override("separation", roundi(18.0 * layout_scale))

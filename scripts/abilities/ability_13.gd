@@ -6,5 +6,6 @@ extends Ability
 func apply(ctx: AbilityContext) -> void:
 	if ctx.is_enhanced:
 		ctx.item_system.grant(ctx.caster, "SWORD")
+		ctx.caster.item().data["source_rank"] = 13
 	else:
 		ctx.effects["enhance_next_ability"] = true

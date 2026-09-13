@@ -54,8 +54,8 @@ func try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 
 	var ability_rank := int(first_card.get("rank", 0))
 	var updated_hand: Array[Dictionary] = participant.hand.duplicate()
-	updated_hand.remove_at(second_index)
-	updated_hand.remove_at(first_index)
+	updated_hand[first_index] = {}
+	updated_hand[second_index] = {}
 	participant.set_hand(updated_hand)
 
 	activate_pair_ability(participant, ability_rank)
@@ -68,15 +68,28 @@ func try_use_pair(participant: Node3D, pair_slot: int) -> bool:
 
 
 func _refill_hand(participant: Node3D) -> void:
-	var missing_count := maxi(GameConfig.HAND_SIZE - participant.hand.size(), 0)
+	var missing_count := 0
+	for card in participant.hand:
+		if card.is_empty():
+			missing_count += 1
+	missing_count += maxi(GameConfig.hand_size - participant.hand.size(), 0)
 	if missing_count <= 0:
 		return
 	var cards: Array[Dictionary] = _deck.draw_cards(missing_count)
 	if cards.is_empty():
+		var remaining_hand: Array[Dictionary] = participant.hand.filter(func(card: Dictionary) -> bool: return not card.is_empty())
+		participant.set_hand(remaining_hand)
 		return
 	var updated_hand: Array[Dictionary] = participant.hand.duplicate()
-	updated_hand.append_array(cards)
-	participant.set_hand(updated_hand, true)
+	for card in cards:
+		var empty_index := updated_hand.find({})
+		if empty_index >= 0:
+			updated_hand[empty_index] = card
+		else:
+			updated_hand.append(card)
+	if _deck.remaining_count() == 0:
+		updated_hand = updated_hand.filter(func(card: Dictionary) -> bool: return not card.is_empty())
+	participant.set_hand(updated_hand)
 
 
 func activate_pair_ability(participant: Node3D, ability_rank: int) -> void:
@@ -114,7 +127,7 @@ func update_computer_pair_actions(delta: float) -> void:
 			continue
 
 		var valid_pair_slots: Array[int] = []
-		for pair_slot in range(4):
+		for pair_slot in range(GameConfig.hand_size / 2):
 			if is_valid_pair_slot(participant, pair_slot):
 				valid_pair_slots.append(pair_slot)
 		if not valid_pair_slots.is_empty():

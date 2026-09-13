@@ -2,6 +2,8 @@ extends Control
 signal card_dropped(from_index: int, to_index: int)
 
 const JOKER_TEXTURE := preload("res://assets/seprite/joker_only1.png")
+const CARD_IMAGE_ROOT := "res://assets/seprite/card_png"
+static var _card_textures: Dictionary = {}
 
 @onready var panel: PanelContainer = $Panel
 @onready var margin_container: MarginContainer = $Panel/MarginContainer
@@ -13,6 +15,7 @@ var _drag_index := -1
 var _is_compact := false
 var _ui_scale := 1.0
 var _joker_image: TextureRect
+var _card_image: TextureRect
 
 
 func set_card(card: Dictionary) -> void:
@@ -21,7 +24,12 @@ func set_card(card: Dictionary) -> void:
 	panel.visible = not is_joker
 	_joker_image.visible = is_joker
 	if is_joker:
+		_card_image.visible = false
 		return
+	var texture := _find_card_texture(card)
+	_card_image.texture = texture
+	_card_image.visible = texture != null
+	panel.visible = texture == null
 
 	var card_color: Color = card.get("color", Color.BLACK)
 	rank_label.text = card.get("label", "?")
@@ -66,11 +74,51 @@ func _ensure_joker_image() -> void:
 	_joker_image.name = "JokerImage"
 	_joker_image.texture = JOKER_TEXTURE
 	_joker_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_joker_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_joker_image.stretch_mode = TextureRect.STRETCH_SCALE
 	_joker_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_joker_image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_joker_image.visible = false
 	add_child(_joker_image)
+	_card_image = TextureRect.new()
+	_card_image.name = "CardImage"
+	_card_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card_image.stretch_mode = TextureRect.STRETCH_SCALE
+	_card_image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_card_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_card_image.visible = false
+	add_child(_card_image)
+
+
+func _find_card_texture(card: Dictionary) -> Texture2D:
+	var rank := int(card.get("rank", 0))
+	var suit := String(card.get("suit", ""))
+	var mark: String = {"spade": "spe-do", "heart": "hart", "diamond": "daiya", "club": "club"}.get(suit, "")
+	if rank < 1 or rank > 13 or mark.is_empty():
+		return null
+	var variant := "item" if bool(card.get("item", false)) and not bool(card.get("god", false)) else mark
+	var key := "%d:%s:%s" % [rank, variant, "god" if bool(card.get("god", false)) else "normal"]
+	if _card_textures.has(key):
+		return _card_textures[key]
+	var folder := "%s/%d" % [CARD_IMAGE_ROOT, rank]
+	var directory := DirAccess.open(folder)
+	if directory == null:
+		return null
+	for filename in directory.get_files():
+		if not filename.to_lower().ends_with(".png"):
+			continue
+		var normalized := filename.to_lower().strip_edges().trim_suffix(".png").strip_edges()
+		if "edit" in normalized:
+			continue
+		var expected := " %s" % variant
+		if not normalized.ends_with(expected + " god") and not normalized.ends_with(expected):
+			continue
+		if bool(card.get("god", false)) != normalized.ends_with(" god"):
+			continue
+		var texture := load(folder.path_join(filename)) as Texture2D
+		_card_textures[key] = texture
+		return texture
+	return null
 
 
 func _get_drag_data(_at_position: Vector2) -> Variant:
