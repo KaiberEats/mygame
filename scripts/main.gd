@@ -18,6 +18,7 @@ const PLAYER_SCENE := preload("res://scenes/entities/Player.tscn")
 
 # System 群は Match.tscn の Systems ノードに配置。main は参照して結線・tick 発火する。
 @onready var _exchange: ExchangeSystem = $Systems/ExchangeSystem
+var _card_visual_state := ""
 @onready var _item_system: ItemSystem = $Systems/ItemSystem
 @onready var _combat: CombatSystem = $Systems/CombatSystem
 @onready var _ability: AbilitySystem = $Systems/AbilitySystem
@@ -85,15 +86,15 @@ func _ready() -> void:
 	_exchange.setup_stations()
 	if _net.is_game_authority():
 		deck.reset_and_shuffle(GameConfig.deck_size)
-		deck.ensure_joker_in_next_draws(GameConfig.HAND_SIZE * _participants.size())
+		deck.ensure_joker_in_next_draws(GameConfig.hand_size * _participants.size())
 		for participant in _participants:
-			participant.set_hand(deck.draw_cards(GameConfig.HAND_SIZE))
+			participant.set_hand(deck.draw_cards(GameConfig.hand_size))
 		_exchange.deal_cards()
 	elif NetworkManager.is_online:
 		_request_full_state.rpc_id(1)
 
 	game_hud.set_deck_count(deck.remaining_count(), deck.total_count())
-	game_hud.set_hand(player.hand)
+	_update_hand_visuals()
 	game_hud.set_kill_available(false)
 	game_hud.set_change_available(false)
 	game_hud.set_item("")
@@ -113,6 +114,7 @@ func _process(delta: float) -> void:
 	if _net.is_game_authority():
 		_game_state.time_left = maxf(_game_state.time_left - delta, 0.0)
 	_hud.refresh_status()
+	_update_hand_visuals()
 	_controls.update_aim()
 	_exchange.update_hold(delta)
 	_hud.refresh_actions()
@@ -144,6 +146,35 @@ func _on_hand_reordered(cards: Array[Dictionary]) -> void:
 
 
 func _on_player_hand_changed(cards: Array[Dictionary]) -> void:
+	_update_hand_visuals()
+
+
+func _update_hand_visuals() -> void:
+	var effects: Dictionary = player.status().data
+	var god := bool(effects.get("enhance_next_ability", false))
+	var item_rank := int(player.item().data.get("source_rank", 0))
+	var item_ranks: Array[int] = []
+	if item_rank > 0:
+		item_ranks.append(item_rank)
+	if float(effects.get("scythe_until", 0.0)) > Clock.now():
+		item_ranks.append(4)
+	if float(effects.get("coin_until", 0.0)) > Clock.now():
+		item_ranks.append(8)
+	if float(effects.get("counter_until", 0.0)) > Clock.now():
+		item_ranks.append(9)
+	if int(effects.get("barrier_charges", 0)) > 0:
+		item_ranks.append(12)
+	var state := "%s:%s:%s" % [str(player.hand), str(god), str(item_ranks)]
+	if state == _card_visual_state:
+		return
+	_card_visual_state = state
+	var cards: Array[Dictionary] = []
+	for card in player.hand:
+		var visual_card: Dictionary = card.duplicate()
+		if not visual_card.is_empty():
+			visual_card["god"] = god
+			visual_card["item"] = item_ranks.has(int(card.get("rank", 0)))
+		cards.append(visual_card)
 	game_hud.set_hand(cards)
 
 
@@ -280,5 +311,3 @@ func _request_full_state() -> void:
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _receive_game_state(state: Dictionary) -> void:
 	_codec.apply_state(state)
-
-

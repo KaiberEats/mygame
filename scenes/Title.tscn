@@ -37,7 +37,7 @@ alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 96
-text = "Joker"
+text = "Joker in the deck"
 horizontal_alignment = 1
 
 [node name="GameStartButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1838644744]
