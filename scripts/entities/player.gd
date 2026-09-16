@@ -93,18 +93,22 @@ func _physics_process(delta: float) -> void:
 		_sync_transform.rpc(global_transform)
 
 
-func set_hand(cards: Array, force_sort: bool = false) -> void:
+func set_hand(cards: Array, _force_sort: bool = false) -> void:
 	var typed_cards: Array[Dictionary] = []
 	for card in cards:
 		if card is Dictionary:
 			typed_cards.append(card)
-	hand = HAND_SORTER.sort(typed_cards) if force_sort or typed_cards.size() > hand.size() else typed_cards
+	hand = HAND_SORTER.sort(typed_cards) if hand.is_empty() else typed_cards
 	hand_changed.emit(hand)
 
 
 func add_card(card: Dictionary) -> void:
 	var updated_hand: Array[Dictionary] = hand.duplicate()
-	updated_hand.append(card)
+	var empty_index := updated_hand.find({})
+	if empty_index >= 0:
+		updated_hand[empty_index] = card
+	else:
+		updated_hand.append(card)
 	set_hand(updated_hand)
 
 

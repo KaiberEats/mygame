@@ -54,7 +54,7 @@ func close() -> void:
 
 func start_game() -> void:
 	if is_online and multiplayer.is_server():
-		_load_game.rpc(GameConfig.computer_count, GameConfig.deck_size, GameConfig.time_limit_minutes)
+		_load_game.rpc(GameConfig.computer_count, GameConfig.deck_size, GameConfig.time_limit_minutes, GameConfig.hand_size)
 	else:
 		get_tree().change_scene_to_file("res://scenes/match/Match.tscn")
 
@@ -146,9 +146,10 @@ func _request_return_to_waiting_room() -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _load_game(computer_count: int, deck_size: int, time_limit_minutes: int) -> void:
+func _load_game(computer_count: int, deck_size: int, time_limit_minutes: int, hand_size: int) -> void:
 	GameConfig.computer_count = computer_count
 	GameConfig.deck_size = deck_size
 	GameConfig.time_limit_minutes = time_limit_minutes
+	GameConfig.hand_size = hand_size
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/match/Match.tscn")

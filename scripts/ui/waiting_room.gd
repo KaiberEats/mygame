@@ -6,6 +6,7 @@ var _settings_layer: CanvasLayer
 var _computer_spin: SpinBox
 var _deck_spin: SpinBox
 var _time_option: OptionButton
+var _hand_option: OptionButton
 @onready var _pause_menu: CanvasLayer = $PauseMenu
 @onready var _system_settings: Control = $Settings
 
@@ -85,6 +86,13 @@ func _build_settings() -> void:
 		if minutes == GameConfig.time_limit_minutes:
 			_time_option.select(_time_option.item_count - 1)
 	content.add_child(_make_row(GameConfig.text("time_limit"), _time_option))
+	_hand_option = OptionButton.new()
+	_hand_option.custom_minimum_size = Vector2(220, 48)
+	for count in GameConfig.HAND_OPTIONS:
+		_hand_option.add_item(GameConfig.text("cards") % count, count)
+		if count == GameConfig.hand_size:
+			_hand_option.select(_hand_option.item_count - 1)
+	content.add_child(_make_row("手札上限" if GameConfig.language == "ja" else GameConfig.text("hand_limit"), _hand_option))
 
 	var start_button := Button.new()
 	start_button.custom_minimum_size = Vector2(0, 64)
@@ -193,6 +201,7 @@ func _start_game() -> void:
 	GameConfig.computer_count = int(_computer_spin.value)
 	GameConfig.deck_size = int(_deck_spin.value)
 	GameConfig.time_limit_minutes = _time_option.get_item_id(_time_option.selected)
+	GameConfig.hand_size = _hand_option.get_item_id(_hand_option.selected)
 	get_tree().paused = false
 	NetworkManager.start_game()
 
@@ -220,4 +229,3 @@ func _sync_network_players() -> void:
 		add_child(remote_player)
 		remote_player.set_body_color(NetworkManager.get_player_color(int(peer_id)))
 		remote_player.global_position = Vector3((int(peer_id) % 5) * 3.0 - 6.0, 0.0, 4.0)
-

@@ -7,7 +7,8 @@ const TIME_OPTIONS: Array[int] = [5, 10, 15, 20, 25, 30]
 const PLAYER_COLOR_OPTIONS := ["black", "red", "blue", "green", "purple", "pink", "cyan"]
 
 # ゲーム進行の調整値。試合の各層はここを参照する（main に散らさない）。
-const HAND_SIZE := 8
+const HAND_OPTIONS: Array[int] = [2, 4, 6, 8]
+var hand_size := 8
 const KILL_DISTANCE := 5.0
 const KILL_CENTER_DOT := 0.985
 const STUN_SECONDS := 10.0
@@ -79,6 +80,7 @@ var _translations := {
 		"server_ip": "Server IP address", "join_server": "Join Server", "quit_game": "Quit Game",
 		"game_settings": "Game Settings", "map": "Map", "computers": "Computers",
 		"deck_cards": "Deck Cards", "time_limit": "Time Limit", "minutes": "%d minutes",
+		"hand_limit": "Hand Limit",
 		"start_mansion": "Start Mansion", "open_settings": "Open game settings",
 		"close_settings": "Close settings", "deck": "Deck", "kill": "Kill", "change": "Change",
 		"hold_change": "Hold Change", "changed": "Change!", "stun": "Stun", "debug_return": "DEBUG: Classic Room",
